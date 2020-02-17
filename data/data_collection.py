@@ -36,8 +36,9 @@ cnx = mysql.connector.connect(
 )
 cursor = cnx.cursor()
 
-# Insert trip data into MySQL db
-helpers.insert_data(trip_objects, cursor, cnx)
+# Insert trip and instructions data into MySQL db
+helpers.insert_trip_data(trip_objects, cursor, cnx)
+helpers.insert_instructions_data(trip_objects, cursor, cnx)
 
 # Close connection to MySQL
 cnx.close()

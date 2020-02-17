@@ -103,6 +103,9 @@ class GDirections:
 
         # Isolate just the specific trip directions
         directions = self._directions_json[0]['legs'][0]['steps']
+        
+        # keep track of which step we're in
+        step = 1
 
         for direction in directions:
 
@@ -117,9 +120,13 @@ class GDirections:
 
                 # Append dict to the results container
                 directions_list.append({
+                    'step':step,
                     'travel_mode' : travel_mode,
                     'length' : direction_len
                 })
+                
+                # Next step will be 1 higher
+                step += 1
 
         return directions_list
 
