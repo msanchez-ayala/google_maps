@@ -83,6 +83,8 @@ HELPER FUNCTIONS FOR DATA MANIPULATION
     
 def assign_trip_direction_text(value):
     """
+    Helper for create_features()
+    
     RETURNS
     -------
     Text decoding the trip direction names. 
@@ -99,6 +101,8 @@ def assign_trip_direction_text(value):
     
 def assign_time_of_day(timestamp):
     """
+    Helper for create_features()
+    
     RETURNS
     -------
     The time of day it is based off of departure_time timestamp.
@@ -126,6 +130,8 @@ def assign_time_of_day(timestamp):
 
 def assign_weekday(day_of_week):
     """
+    Helper for create_features()
+    
     RETURNS
     -------
     0 if the day of week is a weekend day 
@@ -177,3 +183,50 @@ def create_features(df):
 
     # Return the modified df and the list of two grouped dfs
     return df, [df_to_gf, df_to_me]
+
+def create_time_of_day_dfs(df):
+    """
+    RETURNS
+    -------
+    List of 4 dataframes, each one being a different slice of the original df split into the 4 possible times of day.
+    
+    Returned in the order: morning, afternoon, evening, early morning
+    
+    PARAMETERS
+    ----------
+    df: [DataFrame] parent df that will be subset into morning, afternoon, evening, and early morning.  
+    """
+    times_of_day = ['Morning', 'Afternoon', 'Evening', 'Early Morning']
+    
+    return [df[df['time_of_day'] == times_of_day[i]] for i in range(len(times_of_day))]
+
+def create_day_of_week_dfs(df):
+    """
+    RETURNS
+    -------
+    List of 7 dataframes, each one being a different slice of the original df split into the 7 days of the week.
+    
+    Returned in the order: Monday, Tues, ... , Sat, Sun
+    
+    PARAMETERS
+    ----------
+    df: [DataFrame] parent df that will be subset into days of week.  
+    """
+    # Days of week are designated from 0-7 in the df
+    return [df[df['day_of_week'] == i] for i in range(0,8)]
+
+def create_weekday_end_dfs(df):
+    """
+    RETURNS
+    -------
+    List of 2 dataframes, each one being a different slice of the original df split into weekday or weekend.
+    
+    Returned in the order: Weekday, weekend
+    
+    PARAMETERS
+    ----------
+    df: [DataFrame] parent df that will be subset into weekday/end.  
+    """
+    # Weekday is 1 and weekend is 0 in this column of the df
+    return [df[df['weekday'] == i] for i in [1,0]]
+    
