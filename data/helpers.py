@@ -1,8 +1,12 @@
 import pandas as pd
+import plotly.graph_objects as go
+
 
 """
-HELPER FUNCTIONS FOR MySQL
+MySQL HELPERS
+-------------
 """
+
 
 # write a function to insert data into the reviews table
 def insert_trip_data(trip_objects, cursor, cnx):
@@ -77,7 +81,8 @@ def insert_instructions_data(trip_objects, cursor, cnx):
     
     
 """
-HELPER FUNCTIONS FOR DATA MANIPULATION
+DATA MANIPULATION HELPERS
+-------------------------
 """    
     
     
@@ -229,4 +234,180 @@ def create_weekday_end_dfs(df):
     """
     # Weekday is 1 and weekend is 0 in this column of the df
     return [df[df['weekday'] == i] for i in [1,0]]
+
+
+"""
+PLOTTING FUNCTIONS AND HELPERS
+-------------------------------
+"""
+
+
+def assert_subset(subset):
+    """
+    Helper for plotting functions below. Asserts that subset is in the allowed subsets.
+    """
+    allowed_subsets = ['All Trips', 'Weekdays', 'Weekends', 'Morning', 
+                       'Afternoon', 'Evening', 'Early Morning']
     
+    assert subset in allowed_subsets, 'Please select an allowed subset from the documentation.'
+    
+
+def plot_boxes(dfs, subset = None):
+    """
+    RETURNS
+    -------
+    A figure comparing box plots of trip duration for the two DataFrames passed as arguments.
+    
+    PARAMETERS
+    ----------
+    dfs: [list] two DataFrames, one being the trip to gf slice and the other being trip to me slice.
+         These dfs must already have all of the engineered features from create_features().
+         
+    subset: [str] Denotes the subset these dfs belong to. Can be one of:
+            ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', Evening', 'Early Morning']
+    """        
+    if subset:
+        assert_subset(subset)
+    
+    # Instantiate plotly figure
+    fig = go.Figure()
+
+    # Add a single trace for the data in each df
+    for df in dfs:
+        
+        fig.add_trace(go.Box(
+            y = df.trip_duration,                    # y values for this trace
+            name = df.trip_direction_text.values[0], # x label for this trace
+        ))
+
+    fig.update_layout(
+        title = f'Transit Trip Duration for {subset}' if subset else 'Transit Trip Duration',
+        yaxis_title = 'Minutes',
+        template = 'plotly_white',
+        showlegend = False
+    )
+
+    fig.show()
+    
+def plot_trip_ts(dfs, subset = None):
+    """
+    RETURNS
+    -------
+    A time series of trip durations for the two DataFrames passed as arguments.
+    
+    PARAMETERS
+    ----------
+    dfs: [list] two DataFrames, one being the trip to gf slice and the other being trip to me slice.
+         These dfs must already have all of the engineered features from create_features().
+         
+    subset: [str] Denotes the subset these dfs belong to. Can be one of:
+            ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', Evening', 'Early Morning']
+    """
+    if subset:
+        assert_subset(subset)
+        
+    # Instantiate plotly figure    
+    fig = go.Figure()
+
+    # Add a single trace for the data in each df
+    for df in dfs:
+
+        fig.add_trace(go.Scatter(
+            x = df.departure_time,                       
+            y = df.trip_duration,
+            name = df['trip_direction_text'].values[0], # Legend labels for this trace
+        ))
+    
+    fig.update_layout(
+        title = f'Transit Trip Duration for {subset}' if subset else 'Transit Trip Duration',
+        yaxis_title = 'Minutes',
+        xaxis_title = 'Departure Time',
+        template = 'plotly_white'
+    )
+
+    fig.show()
+
+def plot_transfers(dfs, subset = None):
+    """
+    RETURNS
+    -------
+    A bar graph comparing number of transfers between trip directions.
+    
+    PARAMETERS
+    ----------
+    dfs: [list] two DataFrames, one being the trip to gf slice and the other being trip to me slice.
+         These dfs must already have all of the engineered features from create_features().
+         
+    subset: [str] Denotes the subset these dfs belong to. Can be one of:
+            ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', Evening', 'Early Morning']
+    """
+    # The no. of steps for each departure time for trips to my gf's apartment. No. of transfers = no. of lines - 1
+    instr_to_gf_transfers = dfs[0].groupby(by='departure_time')['trip_direction'].count() - 1
+
+    # The no. of steps for each departure time for trips to my apartment. No. of transfers = no. of lines - 1
+    instr_to_me_transfers = dfs[1].groupby(by='departure_time')['trip_direction'].count() - 1
+
+    # Instantiate plotly fig
+    fig = go.Figure()
+
+    # Add a single trace for the data in each df
+    fig.add_trace(go.Histogram(
+        
+        x = instr_to_gf_transfers.values,
+        name = 'Trips to gf'
+        ))
+
+    fig.add_trace(go.Histogram(
+        x = instr_to_me_transfers.values,
+        name = 'Trips to me'
+    ))
+
+    fig.update_layout(
+        title = f'Number of Transfers per Trip for {subset}' if subset else 'Number of Transfers per Trip',
+        xaxis_title = 'No. of Transfers',
+        template = 'plotly_white'
+    )
+    
+    fig.show()
+    
+def plot_line_freq(df, subset = None):
+    """
+    RETURNS
+    -------
+    A bar graph of frequency that a .
+    
+    PARAMETERS
+    ----------
+    dfs: [list] two DataFrames, one being the trip to gf slice and the other being trip to me slice.
+         These dfs must already have all of the engineered features from create_features().
+         
+    subset: [str] Denotes the subset these dfs belong to. Can be one of:
+            ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', Evening', 'Early Morning']
+    """
+    
+    # Store trip direction text
+    trip_direction = df['trip_direction_text'].values[0]
+    
+    # Find counts of each transit line for this trip direction. Then sort descending and keep only the first column since
+    # they will all tell us the exact same info
+    transit_lines = df.groupby(by='transit_line').count().sort_values(by='trip_direction',ascending=False).iloc[:,0]
+
+    # Instantiate figure
+    fig = go.Figure()
+
+    # add bars
+    fig.add_trace(go.Bar(
+        x=transit_lines.index,
+        y=transit_lines.values
+    ))
+
+    
+    fig.update_layout(
+        title = f'Transit Line Frequency for {subset}' if subset else 'Transit Line Frequency',
+        yaxis_title = 'No. of Times Recommended to Take',
+        xaxis_title = 'Transit Line (Subway or Bus)',
+        template = 'plotly_white'
+    )
+
+    fig.show()
+        
