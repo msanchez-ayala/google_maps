@@ -1,5 +1,7 @@
 import pandas as pd
 import plotly.graph_objects as go
+import mysql.connector 
+import config
 
 
 """
@@ -84,6 +86,41 @@ def insert_instructions_data(trip_objects, cursor, cnx):
 DATA MANIPULATION HELPERS
 -------------------------
 """    
+
+def get_dfs(kind):
+    """
+    RETURNS
+    -------
+    A list of two dataframes for trips data. One for trips to gf and another for trips to me.
+    
+    PARAMETERS
+    ----------
+    kind: [str] either trips or instructions. Determines what SQL query is made
+    """
+    assert kind in ['trips', 'instructions'], 'Invalid type of dataframe'
+    
+    # Establish connection to MySQL db and connect to db `google_maps`
+    cnx = mysql.connector.connect(
+        host = config.host,
+        user = config.user,
+        passwd = config.password
+    )
+    cursor = cnx.cursor()
+    cursor.execute("USE google_maps")
+    
+    
+    # Get all data after 2/18 and store as a df
+    cursor.execute(f"""SELECT * FROM {kind} WHERE DAY(departure_time) > 18;""")
+    trip_df = pd.DataFrame(cursor.fetchall())
+    
+    # Retrieve column names
+    trip_df.columns = [x[0] for x in cursor.description]
+    
+    cnx.close()
+    cursor.close()
+    
+    # Call helper to create engineered features and return list of 2 dfs
+    return create_features(trip_df)
     
     
 def assign_trip_direction_text(value):
@@ -187,7 +224,7 @@ def create_features(df):
     df_to_me = df[df['trip_direction'] == 1]
 
     # Return the modified df and the list of two grouped dfs
-    return df, [df_to_gf, df_to_me]
+    return [df_to_gf, df_to_me]
 
 def create_time_of_day_dfs(df):
     """
