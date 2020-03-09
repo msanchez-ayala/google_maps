@@ -364,7 +364,7 @@ def plot_trip_ts(dfs, subset = None):
 
     fig.show()
 
-def plot_transfers(dfs, subset = None):
+def plot_transfers(df, subset = None):
     """
     RETURNS
     -------
@@ -372,30 +372,29 @@ def plot_transfers(dfs, subset = None):
 
     PARAMETERS
     ----------
-    dfs: [list] two DataFrames, one being the trip to gf slice and the other being trip to me slice.
-         These dfs must already have all of the engineered features from create_features().
+    dfs: [DataFrame] one DataFrame containing all trip instruction data for both
+    directions. must already have all of the engineered features from create_features().
 
     subset: [str] Denotes the subset these dfs belong to. Can be one of:
             ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', Evening', 'Early Morning']
     """
-    # The no. of steps for each departure time for trips to my gf's apartment. No. of transfers = no. of lines - 1
-    instr_to_gf_transfers = dfs[0].groupby(by='departure_time')['trip_direction'].count() - 1
+    # Group by departure time and then trip direction to count number of transit steps for each individual trip
+    plot_df = pd.DataFrame(df.groupby(by=['departure_time','trip_direction'])['trip_step'].count())
 
-    # The no. of steps for each departure time for trips to my apartment. No. of transfers = no. of lines - 1
-    instr_to_me_transfers = dfs[1].groupby(by='departure_time')['trip_direction'].count() - 1
+    # Unstack and remove one level of column index by selecting 'trip step'
+    plot_df = plot_df.unstack()['trip_step']
 
     # Instantiate plotly fig
     fig = go.Figure()
 
     # Add a single trace for the data in each df
     fig.add_trace(go.Histogram(
-
-        x = instr_to_gf_transfers.values,
+        x = plot_df[0].values,
         name = 'Trips to gf'
-        ))
+    ))
 
     fig.add_trace(go.Histogram(
-        x = instr_to_me_transfers.values,
+        x = plot_df[1].values,
         name = 'Trips to me'
     ))
 
