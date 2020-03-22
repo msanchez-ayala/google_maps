@@ -6,24 +6,43 @@ Google Maps API, parse information, and store into google_maps.trips MySQL db.
 import config
 import googlemaps
 from datetime import datetime
-from GDirections import GDirections
+import Directions
 import mysql.connector
 import helpers
 
 # Connect to Google Maps API
 gmaps = googlemaps.Client(key=config.api_key)
 
-# Geocode my address, store lat/long
-geocode_my_result = gmaps.geocode(config.my_address)
-my_geometry = geocode_my_result[0]['geometry']['location']
+def get_geometry(address):
+    """
+    Returns
+    -------
+    Lat/Long of the supplied address.
 
-# Geocoding my girlfriend's address, store lat/lon
-geocode_gf_result = gmaps.geocode(config.gf_address)
-gf_geometry = geocode_gf_result[0]['geometry']['location']
+    Parameters
+    ----------
+    address: [str] An address as you would enter it into Google Maps.
+
+    Examples
+    --------
+
+    >>> get_geometry('One World Trade Center')
+    {'lat': 40.7127431, 'lng': -74.0133795}
+
+    >>> get_geometry('476 5th Ave, New York, NY 10018')
+    {'lat': 40.75318230000001, 'lng': -73.9822534}
+    """
+    geocoded_address = gmaps.geocode(address)
+    geometry = geocoded_address[0]['geometry']['location']
+    return geometry
+
+# Get geometry for two addresses
+my_geometry = get_geometry(config.my_address)
+gf_geometry = get_geometry(config.gf_address)
 
 # Instantiate trip to gf's home, my home
-transit_to_gf = GDirections(my_geometry, gf_geometry, 'transit', gmaps)
-transit_to_me = GDirections(gf_geometry, my_geometry, 'transit', gmaps)
+transit_to_gf = Directions(my_geometry, gf_geometry, 'transit', gmaps)
+transit_to_me = Directions(gf_geometry, my_geometry, 'transit', gmaps)
 
 # Store these together in a list
 trip_objects = [transit_to_gf, transit_to_me]
