@@ -1,65 +1,62 @@
 from datetime import datetime
 import googlemaps
 
-class GDirections:
+class Directions:
     """
     A class to keep track of and display to the user only necessary parts of
     the Google maps searches.
 
-    ATTRIBUTES
+    Parameters
+    -----------
+    start_coords: [dict] Lat/Lng of starting location in the form
+        {'lat': lat, 'lng': lng}.
+    end_coords: [dict] Lat/Lng of ending location in the form
+        {'lat': lat, 'lng': lng}.
+    mode: [str] One of "driving", "walking", "bicycling" or "transit".
+    gmaps: googlemaps.Client object.
+
+
+    Instance Variables
     ----------
     trip_start: [datetime] datetime object of when the API call was made.
     trip_duration: [int] total duration of the trip in minutes.
     trip_instructions: [dict] with train/bus lines and time on each one.
-
-    METHODS
-    -------
     """
 
-
-    def __init__(self, start_geometry, end_geometry, mode, gmaps):
-
-        """
-        Parameters
-        -----------
-
-        start_geometry: latitude and longitude of start location
-        end_geometry: latitude and longitude of end location
-        mode: One of "driving", "walking", "bicycling" or "transit"
-        gmaps: googlemaps.Client object
-        """
+    def __init__(self, start_coords, end_coords, mode, gmaps):
         self._gmaps = gmaps
         self._trip_start = datetime.now()
-        self._directions_json = self._retrieve_google_directions_json(start_geometry, end_geometry, mode)
+        self._directions_json = self._retrieve_google_directions_json(
+            start_coords, end_coords, mode
+        )
         self._trip_duration = self._calculate_trip_duration()
 
 
-    def _retrieve_google_directions_json(self,start_geometry, end_geometry, mode):
-
+    def _retrieve_google_directions_json(self,start_coords, end_coords, mode):
         """
-        Call Google Maps API to retrieve a json with directions information
+        Extraction of Google Maps API data.
+
+        Returns
+        --------
+        A json with trip direction information
         """
 
         # Call API
         directions = self._gmaps.directions(
-            origin = start_geometry,
-            destination = end_geometry,
+            origin = start_coords,
+            destination = end_coords,
             mode = mode,
             departure_time = self._trip_start
         )
         return directions
 
     def _calculate_trip_duration(self):
-
         """
         Calculate and return trip duration in minutes.
 
         Returns
         -------
-
-        Trip duration as a string in minutes.
-
-        e.g. '50 minutes'
+        Trip duration in minutes as an int.
         """
 
         # Store arrival time and convert to datetime
@@ -84,16 +81,15 @@ class GDirections:
         """
         Getter method for trip_duration in minutes as int
         """
-
         return self._trip_duration
 
     def get_trip_instructions(self):
         """
-        RETURNS
+        Returns
         -------
         A dictionary with which trains/buses to take in this trip and how long each one will take.
 
-        PARAMETERS
+        Parameters
         ----------
 
         directions: [JSON] raw directions contained within self._directions_json
@@ -103,7 +99,7 @@ class GDirections:
 
         # Isolate just the specific trip directions
         directions = self._directions_json[0]['legs'][0]['steps']
-        
+
         # keep track of which step we're in
         step = 1
 
@@ -124,7 +120,7 @@ class GDirections:
                     'travel_mode' : travel_mode,
                     'length' : direction_len
                 })
-                
+
                 # Next step will be 1 higher
                 step += 1
 
