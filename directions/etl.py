@@ -10,7 +10,6 @@ from Directions import Directions
 import mysql.connector
 import helpers
 
-
 def get_coordinates(address, gmaps):
     """
     Returns
@@ -54,7 +53,6 @@ def extract_transform_directions(location_1, location_2, key):
         would enter it into Google Maps.
     key: [str] Google API key.
     """
-
     gmaps = googlemaps.Client(key)
     gmaps = googlemaps.Client(config.api_key)
 
@@ -73,25 +71,63 @@ def extract_transform_directions(location_1, location_2, key):
 
     return [trip_1, trip_2]
 
-# Store these together in a list
-trip_objects = extract_transform_directions(
-    config.my_address, config.gf_address, config.api_key
-)
+def open_connection():
+    """
+    Returns
+    -------
+    Connection and cursor objects representing a connection to the db.
+    """
+    cnx = mysql.connector.connect(
+        host = config.host,
+        user = config.user,
+        passwd = config.password
+    )
+    cursor = cnx.cursor()
+    return cnx, cursor
 
-print(trip_objects)
-#
-# # Create connection to mysql
-# cnx = mysql.connector.connect(
-#     host = config.host,
-#     user = config.user,
-#     passwd = config.password
-# )
-# cursor = cnx.cursor()
-#
-# # Insert trip and instructions data into MySQL db
-# helpers.insert_trip_data(trip_objects, cursor, cnx)
-# helpers.insert_instructions_data(trip_objects, cursor, cnx)
-#
-# # Close connection to MySQL
-# cnx.close()
-# cursor.close()
+def close_connection(cnx, cursor):
+    """
+    Closes connection to the db.
+
+    Parameters
+    ----------
+    cnx: connection object from mysql.connector.
+    cursor: cursor of cnx object.
+    """
+    cnx.close()
+    cursor.close()
+
+def load_directions(trip_objects):
+    """
+    Loads trip object data into MySQL RDS db named google_maps. Opens and closes
+    connection to MySQL db to avoid lingering connections.
+
+    Parameters
+    ----------
+    trip_objects: list of two Directions objects corresponding to the trips
+        between two locations. This can be gotten from the output of
+        extract_transform_directions().
+    """
+    # Connect to MySQL db
+    cnx, cursor = open_connection()
+
+    # Insert trip and instructions data into MySQL db
+    for table in ['trips', 'instructions']:
+        helpers.insert_data(trip_objects, table, cursor, cnx)
+
+    # Close connection to MySQL db
+    close_connection(cnx, cursor)
+
+def etl():
+    """
+    Wraps together all ETL.
+    """
+    # Extract/Transform
+    trip_objects = extract_transform_directions(
+        config.my_address, config.gf_address, config.api_key
+    )
+    # Load
+    load_directions(trip_objects)
+
+if __name__ == '__main__':
+    etl()
