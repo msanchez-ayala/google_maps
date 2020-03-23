@@ -9,48 +9,45 @@ MySQL HELPERS
 -------------
 """
 
-
-# write a function to insert data into the reviews table
-def insert_trip_data(trip_objects, cursor, cnx):
+def create_trips_tuples(trip_objects):
     """
-    Inserts data into google_maps.trips table.
+    Returns
+    -------
+    List of tuples for insertion into the MySQL db. Each tuple contains the
+    departure time, trip direction, and trip duration for each of the two trip
+    objects.
 
-    PARAMETERS
+    Parameters
     ----------
-
-    trip_object: List of 2 GDirections trip objects containing information
+    trip_objects: List of 2 Directions trip objects containing information
                  to be inserted into the MySQL table. First object contains
-                 info from my house to gf and second object is the other trip.
+                 info from location_1 -> location_2 and second object is the
+                 other trip.
     """
-    # Create list of tuples for the objects in trip_objects
     trip_tuples = [
         (
-        trip_object.get_trip_start(),         # departure_time
-        i,                                    # trip_direction (either 0 or 1)
-        trip_object.get_trip_duration(),      # trip_duration
+            trip_object.get_trip_start(),       # departure_time
+            i,                                  # trip_direction (either 0 or 1)
+            trip_object.get_trip_duration(),    # trip_duration
         )
         for i, trip_object in enumerate(trip_objects)
     ]
+    return trip_tuples
 
-    insert_statement = """
-                       INSERT INTO
-                         google_maps.trips (departure_time, trip_direction, trip_duration)
-                       VALUES
-                         (%s, %s, %s)
-                       ;"""
-    cursor.executemany(insert_statement,trip_tuples)
-    cnx.commit()
-
-def insert_instructions_data(trip_objects, cursor, cnx):
+def create_instructions_tuples(trip_objects):
     """
-    Inserts data into google_maps.instructions table.
+    Returns
+    -------
+    List of tuples for insertion into the MySQL db. Each tuple contains the
+    departure time, trip direction, trip step, transit line, and step duration
+    for each of the two trip objects.
 
-    PARAMETERS
+    Parameters
     ----------
-
-    trip_object: List of 2 GDirections trip objects containing information
+    trip_objects: List of 2 Directions trip objects containing information
                  to be inserted into the MySQL table. First object contains
-                 info from my house to gf and second object is the other trip.
+                 info from location_1 -> location_2 and second object is the
+                 other trip.
     """
     final_tuples = []
 
@@ -62,7 +59,7 @@ def insert_instructions_data(trip_objects, cursor, cnx):
             (
                 trip_object.get_trip_start(),    # departure_time
                 i,                               # trip_direction (either 0 or 1)
-                trip_step['step'],               # trip_setp
+                trip_step['step'],               # trip_step
                 trip_step['travel_mode'],        # transit_line
                 trip_step['length']             # step_duration
             )
@@ -72,20 +69,51 @@ def insert_instructions_data(trip_objects, cursor, cnx):
         # Append to final_tuples list
         final_tuples.extend(instructions_tuples)
 
-    insert_statement = """
-                       INSERT INTO
-                         google_maps.instructions (departure_time, trip_direction, trip_step, transit_line, step_duration)
-                       VALUES
-                         (%s, %s, %s, %s, %s)
-                       ;"""
-    cursor.executemany(insert_statement,final_tuples)
-    cnx.commit()
+    return final_tuples
 
+def insert_data(trip_objects, table, cursor, cnx):
+    """
+    Inserts data into a specified table in the MySQL db google_maps.
+
+    Parameters
+    ----------
+    trip_object: List of 2 Directions trip objects containing information
+                 to be inserted into the MySQL table. First object contains
+                 info from my house to gf and second object is the other trip.
+    table: [str] Specifies which table in google_maps to add to.
+    cnx: connection object from mysql.connector.
+    cursor: cursor of cnx object.
+    """
+
+    if table == 'trips':
+        data_tuples = create_trips_tuples(trip_objects)
+        insert_statement = insert_statement = """
+            INSERT INTO
+              google_maps.trips (departure_time, trip_direction, trip_duration)
+            VALUES
+              (%s, %s, %s);
+        """
+
+    elif table == 'instructions':
+        data_tuples = create_instructions_tuples(trip_objects)
+        insert_statement = """
+            INSERT INTO
+              google_maps.instructions (
+                departure_time, trip_direction,
+                trip_step, transit_line, step_duration
+              )
+            VALUES
+              (%s, %s, %s, %s, %s);
+        """
+
+    cursor.executemany(insert_statement, data_tuples)
+    cnx.commit()
 
 """
 DATA MANIPULATION HELPERS
 -------------------------
 """
+
 
 def get_dfs(kind):
     """
@@ -121,7 +149,6 @@ def get_dfs(kind):
 
     # Call helper to create engineered features and return list of 2 dfs
     return create_features(trip_df)
-
 
 def assign_trip_direction_text(value):
     """
@@ -288,7 +315,6 @@ def assert_subset(subset):
 
     assert subset in allowed_subsets, 'Please select an allowed subset from the documentation.'
 
-
 def plot_boxes(dfs, subset = None):
     """
     RETURNS
@@ -372,7 +398,7 @@ def plot_transfers(df, subset = None):
 
     PARAMETERS
     ----------
-    dfs: [DataFrame] one DataFrame containing all trip instruction data for both
+    df: [DataFrame] one DataFrame containing all trip instruction data for both
     directions. must already have all of the engineered features from create_features().
 
     subset: [str] Denotes the subset these dfs belong to. Can be one of:
@@ -406,7 +432,7 @@ def plot_transfers(df, subset = None):
 
     fig.show()
 
-def plot_line_freq(df, subset = None):
+def plot_line_freq(df, direction, subset = None):
     """
     RETURNS
     -------
@@ -414,32 +440,34 @@ def plot_line_freq(df, subset = None):
 
     PARAMETERS
     ----------
-    dfs: [list] two DataFrames, one being the trip to gf slice and the other being trip to me slice.
-         These dfs must already have all of the engineered features from create_features().
+    df: [DataFrame] one DataFrame containing all trip instruction data for both
+    directions. must already have all of the engineered features from create_features().
+
+    direction: [int] 0 or 1. 0 is to gfs home, 1 is to my home.
 
     subset: [str] Denotes the subset these dfs belong to. Can be one of:
             ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', Evening', 'Early Morning']
     """
 
     # Store trip direction text
-    trip_direction = df['trip_direction_text'].values[0]
+    dir_text = 'GFs' if direction == 0 else 'My'
 
-    # Find counts of each transit line for this trip direction. Then sort descending and keep only the first column since
-    # they will all tell us the exact same info
-    transit_lines = df.groupby(by='transit_line').count().sort_values(by='trip_direction',ascending=False).iloc[:,0]
+    # Group by trip direction and transit line to count up number of times each line is used
+    plot_df = df.groupby(by=['trip_direction','transit_line']).count()
 
-    # Instantiate figure
+    # Sort
+    plot_df = plot_df.sort_values(by=['trip_direction','trip_step'],ascending=False)
+
     fig = go.Figure()
 
-    # add bars
+    # can select 1 instead for index to switch to other direction
     fig.add_trace(go.Bar(
-        x=transit_lines.index,
-        y=transit_lines.values
+        x=plot_df.loc[0].index,
+        y=plot_df.loc[0].trip_step.values
     ))
 
-
     fig.update_layout(
-        title = f'Transit Line Frequency for {subset}' if subset else 'Transit Line Frequency',
+        title = f'Transit Line Frequency for {subset} to {dir_text} Home' if subset else f'Transit Line Frequency to {dir_text} Home',
         yaxis_title = 'No. of Times Recommended to Take',
         xaxis_title = 'Transit Line (Subway or Bus)',
         template = 'plotly_white'
