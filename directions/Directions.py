@@ -4,7 +4,8 @@ import googlemaps
 class Directions:
     """
     A class to keep track of and display to the user only necessary parts of
-    the Google maps searches.
+    the Google maps searches. Performs both the extraction and transformation
+    of Google Maps data upon instantiation of an object.
 
     Parameters
     -----------
@@ -30,8 +31,7 @@ class Directions:
             start_coords, end_coords, mode
         )
         self._trip_duration = self._transform_times()
-        # self._trip_instructions = self._transform_directions()
-
+        self._trip_instructions = self._transform_directions()
 
     def _extract_directions(self, start_coords, end_coords, mode):
         """
@@ -50,7 +50,6 @@ class Directions:
             departure_time = self._trip_start
         )
         return directions
-
 
     def _to_datetime(self, which_time):
         """
@@ -108,15 +107,38 @@ class Directions:
 
         return trip_duration
 
-    def get_trip_duration(self):
+    def _populate_directions_list(directions_list, direction):
         """
-        Getter method for trip_duration in minutes as int
+        Returns
+        -------
+        directions_list: [list] newly appended parsed directions.
+
+        Parameters
+        ----------
+        directions_list: [list] parsed direction dictionaries
+        direction: [dict] unparsed information of the current step in this set
+            of directions.
+        step: [int] The current step of the directions list.
         """
-        return self._trip_duration
+        # Ignore any walking instructions
+        if direction.get('transit_details'):
 
-    # def _transform_directions():
+            # Store name of bus or train line
+            travel_mode = direction['transit_details']['line']['short_name']
 
-    def get_trip_instructions(self):
+            # Store time on that bus or train line in minutes as int
+            direction_len = int(direction['duration']['text'].split()[0])
+
+            # Append dict to the results container
+            directions_list.append({
+                'step':step,
+                'travel_mode' : travel_mode,
+                'length' : direction_len
+            })
+
+        return directions_list
+
+    def _transform_directions(self):
         """
         Returns
         -------
@@ -127,37 +149,35 @@ class Directions:
 
         directions: [JSON] raw directions contained within self._directions
         """
-        # Empty container for results
         directions_list = []
 
-        # Isolate just the specific trip directions
+        # Isolate the relevant trip directions
         directions = self._directions[0]['legs'][0]['steps']
 
-        # keep track of which step we're in
+        # keep track of which step in the directions we're in
         step = 1
 
+        # Parse info for each direction and append to directions_list
         for direction in directions:
 
-            # Ignore any walking instructions
-            if direction.get('transit_details'):
-
-                # Store name of bus or train line
-                travel_mode = direction['transit_details']['line']['short_name']
-
-                # Store time on that bus or train line in minutes as int
-                direction_len = int(direction['duration']['text'].split()[0])
-
-                # Append dict to the results container
-                directions_list.append({
-                    'step':step,
-                    'travel_mode' : travel_mode,
-                    'length' : direction_len
-                })
-
-                # Next step will be 1 higher
-                step += 1
+            directions_list, step = self._populate_directions_list(
+                directions_list, direction, step
+            )
+            step += 1
 
         return directions_list
+
+    def get_trip_duration(self):
+        """
+        Getter method for trip_duration in minutes as int
+        """
+        return self._trip_duration
+
+    def get_trip_instructions(self):
+        """
+        Getter method for _trip_instructions.
+        """
+        return self._trip_instructions
 
     def get_trip_start(self):
         return self._trip_start.strftime("%Y/%m/%d %H:%M")
