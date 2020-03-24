@@ -134,3 +134,6 @@ config.py
 # Keep my notebooks out of the repo
 data_collection.ipynb
 eda.ipynb
+
+# Keep my experimental queries hidden
+queries.sql
