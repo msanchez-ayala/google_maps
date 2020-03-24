@@ -16,8 +16,8 @@ class Directions:
     gmaps: googlemaps.Client object.
 
 
-    Instance Variables
-    ----------
+    Instance Variables (All immutable)
+    ----------------------------------
     trip_start: [datetime] datetime object of when the API call was made.
     trip_duration: [int] total duration of the trip in minutes.
     trip_instructions: [dict] with train/bus lines and time on each one.
@@ -26,13 +26,14 @@ class Directions:
     def __init__(self, start_coords, end_coords, mode, gmaps):
         self._gmaps = gmaps
         self._trip_start = datetime.now()
-        self._directions_json = self._retrieve_google_directions_json(
+        self._directions = self._extract_directions(
             start_coords, end_coords, mode
         )
-        self._trip_duration = self._calculate_trip_duration()
+        self._trip_duration = self._transform_times()
+        # self._trip_instructions = self._transform_directions()
 
 
-    def _retrieve_google_directions_json(self,start_coords, end_coords, mode):
+    def _extract_directions(self, start_coords, end_coords, mode):
         """
         Extraction of Google Maps API data.
 
@@ -50,30 +51,60 @@ class Directions:
         )
         return directions
 
-    def _calculate_trip_duration(self):
-        """
-        Calculate and return trip duration in minutes.
 
+    def _to_datetime(self, which_time):
+        """
+        Returns
+        -------
+        Arrival or departure time from the current instance of this object
+        as a datetime object in %H:%M%p.
+
+        Parameters
+        ----------
+        which_time: [str] Either 'arrival_time' or 'departure_time'
+        """
+        time = self._directions[0]['legs'][0][which_time]['text']
+        dtime = datetime.strptime(time, '%H:%M%p')
+        return dtime
+
+    def _replace_hour(self, arrival_datetime, departure_datetime):
+        """
+        Returns
+        -------
+        arrival_datetime with the hour potentially reset depending on the time
+        difference between two inputted times.
+
+        Parameters
+        ----------
+        arrival_datetime: [datetime] Arrival time to destination in the instance
+            of this trip.
+        departure_datetime: [datetime] Departure time to destination in the
+            instance of this trip.
+        """
+        # The logic is that when we go from 12 am/pm -> 1am/pm, we don't want the
+        # timedelta object to show an hour difference of 11 hours. Thus, account
+        # for when departure hr > arrival hr.
+        if departure_datetime.hour > arrival_datetime.hour:
+            departure_datetime = departure_datetime.replace(hour=0)
+        return departure_datetime
+
+    def _transform_times(self):
+        """
         Returns
         -------
         Trip duration in minutes as an int.
         """
+        # Convert arrival and departure times to datetime
+        arrival_datetime = self._to_datetime('arrival_time')
+        departure_datetime = self._to_datetime('departure_time')
 
-        # Store arrival time and convert to datetime
-        arrival_time = self._directions_json[0]['legs'][0]['arrival_time']['text']
-        arrival_datetime = datetime.strptime(arrival_time, '%H:%M%p')
+        # Replace the departure_datetime hour depending on arrival_time
+        departure_datetime = self._replace_hour(
+            arrival_datetime, departure_datetime
+        )
 
-        # Store arrival time and convert to datetime
-        departure_time = self._directions_json[0]['legs'][0]['departure_time']['text']
-        departure_datetime = datetime.strptime(departure_time, '%H:%M%p')
-
-        # When we go from 12 am/pm -> 1am/pm, we don't want to say the hr diff
-        # is 11 hours. Thus, account for when departure hr > arrival hr
-        if departure_datetime.hour > arrival_datetime.hour:
-            departure_datetime = departure_datetime.replace(hour=0)
-
-        # Calculate difference in seconds, convert to minutes
-        trip_duration = int( (arrival_datetime - departure_datetime).seconds/60 )
+        # Calculate timedelta, convert to minutes
+        trip_duration = int((arrival_datetime - departure_datetime).seconds/60)
 
         return trip_duration
 
@@ -82,6 +113,8 @@ class Directions:
         Getter method for trip_duration in minutes as int
         """
         return self._trip_duration
+
+    # def _transform_directions():
 
     def get_trip_instructions(self):
         """
@@ -92,13 +125,13 @@ class Directions:
         Parameters
         ----------
 
-        directions: [JSON] raw directions contained within self._directions_json
+        directions: [JSON] raw directions contained within self._directions
         """
         # Empty container for results
         directions_list = []
 
         # Isolate just the specific trip directions
-        directions = self._directions_json[0]['legs'][0]['steps']
+        directions = self._directions[0]['legs'][0]['steps']
 
         # keep track of which step we're in
         step = 1
