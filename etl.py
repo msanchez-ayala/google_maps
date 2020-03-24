@@ -5,7 +5,7 @@ google_maps.trips MySQL db.
 from datetime import datetime
 import googlemaps
 import config
-from directions.directions import Directions
+from directions import Directions
 import helpers
 
 
