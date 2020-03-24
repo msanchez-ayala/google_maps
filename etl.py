@@ -130,4 +130,8 @@ def etl():
     load_directions(trip_objects)
 
 if __name__ == '__main__':
-    etl()
+    # etl()
+    trip_objects = extract_transform_directions(
+        config.my_address, config.gf_address, config.api_key
+    )
+    print(trip_objects[0].get_trip_instructions())
