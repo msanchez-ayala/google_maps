@@ -1,14 +1,16 @@
 """
 This module calls the Google Maps API, parses information, and stores into
 google_maps.trips MySQL db.
-
 """
-import config
-import googlemaps
 from datetime import datetime
-from Directions import Directions
-import mysql.connector
+import googlemaps
+import config
+from directions.directions import Directions
 import helpers
+
+
+### EXTRACTION/TRANSFORMATION HELPERS ###
+
 
 def get_coordinates(address, gmaps):
     """
@@ -71,31 +73,109 @@ def extract_transform_directions(location_1, location_2, key):
 
     return [trip_1, trip_2]
 
-def open_connection():
+
+### LOAD HELPERS ###
+
+
+def create_trips_tuples(trip_objects):
     """
     Returns
     -------
-    Connection and cursor objects representing a connection to the db.
-    """
-    cnx = mysql.connector.connect(
-        host = config.host,
-        user = config.user,
-        passwd = config.password
-    )
-    cursor = cnx.cursor()
-    return cnx, cursor
-
-def close_connection(cnx, cursor):
-    """
-    Closes connection to the db.
+    List of tuples for insertion into the MySQL db. Each tuple contains the
+    departure time, trip direction, and trip duration for each of the two trip
+    objects.
 
     Parameters
     ----------
+    trip_objects: List of 2 Directions trip objects containing information
+                 to be inserted into the MySQL table. First object contains
+                 info from location_1 -> location_2 and second object is the
+                 other trip.
+    """
+    trip_tuples = [
+        (
+            trip_object.get_trip_start(),       # departure_time
+            i,                                  # trip_direction (either 0 or 1)
+            trip_object.get_trip_duration(),    # trip_duration
+        )
+        for i, trip_object in enumerate(trip_objects)
+    ]
+    return trip_tuples
+
+def create_instructions_tuples(trip_objects):
+    """
+    Returns
+    -------
+    List of tuples for insertion into the MySQL db. Each tuple contains the
+    departure time, trip direction, trip step, transit line, and step duration
+    for each of the two trip objects.
+
+    Parameters
+    ----------
+    trip_objects: List of 2 Directions trip objects containing information
+                 to be inserted into the MySQL table. First object contains
+                 info from location_1 -> location_2 and second object is the
+                 other trip.
+    """
+    final_tuples = []
+
+    # Start by iterating through trip_objects
+    for i, trip_object in enumerate(trip_objects):
+
+        # Create list of tuples for the objects in trip_objects
+        instructions_tuples = [
+            (
+                trip_object.get_trip_start(),    # departure_time
+                i,                               # trip_direction (either 0 or 1)
+                trip_step['step'],               # trip_step
+                trip_step['travel_mode'],        # transit_line
+                trip_step['length']             # step_duration
+            )
+            for trip_step in trip_object.get_trip_instructions()
+        ]
+
+        # Append to final_tuples list
+        final_tuples.extend(instructions_tuples)
+
+    return final_tuples
+
+def insert_data(trip_objects, table, cursor, cnx):
+    """
+    Inserts data into a specified table in the MySQL db google_maps.
+
+    Parameters
+    ----------
+    trip_object: List of 2 Directions trip objects containing information
+                 to be inserted into the MySQL table. First object contains
+                 info from my house to gf and second object is the other trip.
+    table: [str] Specifies which table in google_maps to add to.
     cnx: connection object from mysql.connector.
     cursor: cursor of cnx object.
     """
-    cnx.close()
-    cursor.close()
+
+    if table == 'trips':
+        data_tuples = create_trips_tuples(trip_objects)
+        insert_statement = insert_statement = """
+            INSERT INTO
+              google_maps.trips (departure_time, trip_direction, trip_duration)
+            VALUES
+              (%s, %s, %s);
+        """
+
+    elif table == 'instructions':
+        data_tuples = create_instructions_tuples(trip_objects)
+        insert_statement = """
+            INSERT INTO
+              google_maps.instructions (
+                departure_time, trip_direction,
+                trip_step, transit_line, step_duration
+              )
+            VALUES
+              (%s, %s, %s, %s, %s);
+        """
+
+    cursor.executemany(insert_statement, data_tuples)
+    cnx.commit()
 
 def load_directions(trip_objects):
     """
@@ -109,14 +189,18 @@ def load_directions(trip_objects):
         extract_transform_directions().
     """
     # Connect to MySQL db
-    cnx, cursor = open_connection()
+    cnx, cursor = helpers.open_connection()
 
     # Insert trip and instructions data into MySQL db
     for table in ['trips', 'instructions']:
-        helpers.insert_data(trip_objects, table, cursor, cnx)
+        insert_data(trip_objects, table, cursor, cnx)
 
     # Close connection to MySQL db
-    close_connection(cnx, cursor)
+    helpers.close_connection(cnx, cursor)
+
+
+### FULL ETL ###
+
 
 def etl():
     """
@@ -129,9 +213,7 @@ def etl():
     # Load
     load_directions(trip_objects)
 
+### SCRIPT FOR NOW ###
+
 if __name__ == '__main__':
-    # etl()
-    trip_objects = extract_transform_directions(
-        config.my_address, config.gf_address, config.api_key
-    )
-    print(trip_objects[0].get_trip_instructions())
+    etl()

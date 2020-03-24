@@ -1,118 +1,45 @@
+"""
+Helper functions module. Will be split up as necessary when more helpers are
+created.
+"""
+
 import pandas as pd
 import plotly.graph_objects as go
 import mysql.connector
 import config
 
 
-"""
-MySQL HELPERS
--------------
-"""
+### MySQL HELPERS ###
 
-def create_trips_tuples(trip_objects):
+
+def open_connection():
     """
     Returns
     -------
-    List of tuples for insertion into the MySQL db. Each tuple contains the
-    departure time, trip direction, and trip duration for each of the two trip
-    objects.
+    Connection and cursor objects representing a connection to the db.
+    """
+    cnx = mysql.connector.connect(
+        host = config.host,
+        user = config.user,
+        passwd = config.password
+    )
+    cursor = cnx.cursor()
+    return cnx, cursor
+
+def close_connection(cnx, cursor):
+    """
+    Closes connection to the db.
 
     Parameters
     ----------
-    trip_objects: List of 2 Directions trip objects containing information
-                 to be inserted into the MySQL table. First object contains
-                 info from location_1 -> location_2 and second object is the
-                 other trip.
-    """
-    trip_tuples = [
-        (
-            trip_object.get_trip_start(),       # departure_time
-            i,                                  # trip_direction (either 0 or 1)
-            trip_object.get_trip_duration(),    # trip_duration
-        )
-        for i, trip_object in enumerate(trip_objects)
-    ]
-    return trip_tuples
-
-def create_instructions_tuples(trip_objects):
-    """
-    Returns
-    -------
-    List of tuples for insertion into the MySQL db. Each tuple contains the
-    departure time, trip direction, trip step, transit line, and step duration
-    for each of the two trip objects.
-
-    Parameters
-    ----------
-    trip_objects: List of 2 Directions trip objects containing information
-                 to be inserted into the MySQL table. First object contains
-                 info from location_1 -> location_2 and second object is the
-                 other trip.
-    """
-    final_tuples = []
-
-    # Start by iterating through trip_objects
-    for i, trip_object in enumerate(trip_objects):
-
-        # Create list of tuples for the objects in trip_objects
-        instructions_tuples = [
-            (
-                trip_object.get_trip_start(),    # departure_time
-                i,                               # trip_direction (either 0 or 1)
-                trip_step['step'],               # trip_step
-                trip_step['travel_mode'],        # transit_line
-                trip_step['length']             # step_duration
-            )
-            for trip_step in trip_object.get_trip_instructions()
-        ]
-
-        # Append to final_tuples list
-        final_tuples.extend(instructions_tuples)
-
-    return final_tuples
-
-def insert_data(trip_objects, table, cursor, cnx):
-    """
-    Inserts data into a specified table in the MySQL db google_maps.
-
-    Parameters
-    ----------
-    trip_object: List of 2 Directions trip objects containing information
-                 to be inserted into the MySQL table. First object contains
-                 info from my house to gf and second object is the other trip.
-    table: [str] Specifies which table in google_maps to add to.
     cnx: connection object from mysql.connector.
     cursor: cursor of cnx object.
     """
+    cnx.close()
+    cursor.close()
 
-    if table == 'trips':
-        data_tuples = create_trips_tuples(trip_objects)
-        insert_statement = insert_statement = """
-            INSERT INTO
-              google_maps.trips (departure_time, trip_direction, trip_duration)
-            VALUES
-              (%s, %s, %s);
-        """
 
-    elif table == 'instructions':
-        data_tuples = create_instructions_tuples(trip_objects)
-        insert_statement = """
-            INSERT INTO
-              google_maps.instructions (
-                departure_time, trip_direction,
-                trip_step, transit_line, step_duration
-              )
-            VALUES
-              (%s, %s, %s, %s, %s);
-        """
-
-    cursor.executemany(insert_statement, data_tuples)
-    cnx.commit()
-
-"""
-DATA MANIPULATION HELPERS
--------------------------
-"""
+### DATA MANIPULATION HELPERS ###
 
 
 def get_dfs(kind):
@@ -222,8 +149,9 @@ def create_features(df):
 
     RETURNS
     -------
-    A DataFrame with newly engineered features and a list of the two dataframes
-    grouped by trip direction.
+    df: A DataFrame with newly engineered features
+    df_to_gf, df_to_me: [list] Two dataframes, one for each subset of
+        trip direction.
 
 
     PARAMETERS
@@ -300,10 +228,8 @@ def create_weekday_end_dfs(df):
     return [df[df['weekday'] == i] for i in [1,0]]
 
 
-"""
-PLOTTING FUNCTIONS AND HELPERS
--------------------------------
-"""
+
+### PLOTTING HELPERS ###
 
 
 def assert_subset(subset):
