@@ -107,11 +107,12 @@ class Directions:
 
         return trip_duration
 
-    def _populate_directions_list(directions_list, direction):
+    def _populate_directions_list(self, directions_list, direction, step):
         """
         Returns
         -------
         directions_list: [list] newly appended parsed directions.
+        step: [int] The step of the next direction in the directions list.
 
         Parameters
         ----------
@@ -136,7 +137,9 @@ class Directions:
                 'length' : direction_len
             })
 
-        return directions_list
+            step += 1
+
+        return directions_list, step
 
     def _transform_directions(self):
         """
@@ -163,7 +166,6 @@ class Directions:
             directions_list, step = self._populate_directions_list(
                 directions_list, direction, step
             )
-            step += 1
 
         return directions_list
 
