@@ -15,10 +15,19 @@ public transportation, namely subway and bus.
 The objective is to collect the "best trip" information from the Google Maps API
 every 5 minutes for one week from 1) my apartment to my girlfriend's and 2) her
 apartment to mine. My initial exploration stores the data a MySQL RDS instance.
-I perform EDA to determine the best travel times and see what other insights I can
-glean, and present this in a simple dashboard using Dash.
+I perform EDA to determine the best travel times and see what other insights I
+can glean, and present this in a simple dashboard using Dash.
 
-## Extendability
+## Status
 
-Once complete, I'll make this repository reproducible for the travel time
-optimization between any two locations using Google Maps info. 
+3/25/20: The etl code is now modular and working based on my manual testing.
+I've reorganized the files in a way that makes most sense to me.
+
+## To-Do
+- Load files to S3 instead of RDS.
+- Write tests for ETL functions.
+- Automate ETL with Airflow.
+- Finish designing the dashboard.
+- Make this available to others with Docker. The code currently allows the user
+to input any two locations to perform this experiment on whichever locations
+they like!
