@@ -131,9 +131,8 @@ dmypy.json
 # Config files and secret keys
 config.py
 
-# Keep my notebooks out of the repo
-data_collection.ipynb
-eda.ipynb
-
 # Keep my experimental queries hidden
 queries.sql
+
+# data
+/data/*
