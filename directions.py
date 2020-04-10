@@ -1,21 +1,16 @@
 from datetime import datetime
 import googlemaps
+import config
 
 class Directions:
     """
-    A class to keep track of and display to the user only necessary parts of
-    the Google maps searches. Performs both the extraction and transformation
-    of Google Maps data upon instantiation of an object.
+    Connects to the Google Maps API to retrieve directions for a transit trip
+    between the two given addresses.
 
     Parameters
     -----------
-    start_coords: [dict] Lat/Lng of starting location in the form
-        {'lat': lat, 'lng': lng}.
-    end_coords: [dict] Lat/Lng of ending location in the form
-        {'lat': lat, 'lng': lng}.
-    mode: [str] One of "driving", "walking", "bicycling" or "transit".
-    gmaps: googlemaps.Client object.
-
+    location_1: [str] First address as you would input into Google Maps.
+    location_2: [str] Second address as you would input into Google Maps.
 
     Instance Variables (All immutable)
     ----------------------------------
@@ -24,162 +19,172 @@ class Directions:
     trip_instructions: [dict] with train/bus lines and time on each one.
     """
 
-    def __init__(self, start_coords, end_coords, mode, gmaps):
-        self._gmaps = gmaps
-        self._trip_start = datetime.now()
-        self._directions = self._extract_directions(
-            start_coords, end_coords, mode
-        )
-        self._trip_duration = self._transform_times()
-        self._trip_instructions = self._transform_directions()
 
-    def _extract_directions(self, start_coords, end_coords, mode):
+    def __init__(self, location_1, location_2):
+
+        # Connect to Google Maps API
+        self.gmaps = self.gmaps_client(config.api_key)
+
+        # Convert locations to coordinates
+        self.coords = self.locations_to_coords(location_1, location_2)
+
+        # Get full directions for trips between both locations
+        self.full_directions_A = self.get_full_directions(self.coords)
+        self.full_directions_B = self.get_full_directions(self.coords[::-1])
+
+        # Get parsed directions for trips between both locations
+        self.directions_A = self.get_directions(self.full_directions_A)
+        self.directions_B = self.get_directions(self.full_directions_B)
+
+    def gmaps_client(self, api_key):
         """
-        Extraction of Google Maps API data.
+        Returns
+        -------
+        The gmaps client, given the key in the config file.
 
+        Parameters
+        ----------
+        api_key: [str] A Google API key.
+        """
+        return googlemaps.Client(config.api_key)
+
+
+    def locations_to_coords(self, location_1, location_2):
+        """
+        Returns
+        -------
+        List of two original location addresses as coordinates.
+
+        Parameters
+        -----------
+        location_1: [str] First address as you would input into Google Maps.
+        location_2: [str] Second address as you would input into Google Maps.
+
+
+        Examples
+        --------
+        >>> self.locations_to_coords(
+                'One World Trade Center',
+                '476 5th Ave, New York, NY 10018'
+            )
+        [
+            {'lat': 40.7127431, 'lng': -74.0133795},
+            {'lat': 40.75318230000001, 'lng': -73.9822534}
+        ]
+        """
+        # Convert each location to coordinates and store in list
+        coords = [
+            gmaps.geocode(location)[0]['geometry']['location']
+            for location in [location_1, location_2]
+        ]
+        return coords
+
+
+    def get_full_directions(self, coords):
+        """
         Returns
         --------
-        A json with trip direction information
+        A dict with full trip direction information straight from Google Maps API.
+
+        Parameters
+        ----------
+        coords: List of two original location addresses as coordinates.
         """
 
         # Call API
-        directions = self._gmaps.directions(
-            origin = start_coords,
-            destination = end_coords,
-            mode = mode,
-            departure_time = self._trip_start
-        )
+        directions = gmaps.directions(
+            origin = coords[0],
+            destination = coords[1],
+            mode = 'transit',
+            departure_time = datetime.now()
+        )[0]
         return directions
 
-    def _to_datetime(self, which_time):
+
+    def parse_steps(self, steps):
         """
         Returns
         -------
-        Arrival or departure time from the current instance of this object
-        as a datetime object in %H:%M%p.
+        A list of dictionaries with parsed information on transit steps of the trip.
 
         Parameters
         ----------
-        which_time: [str] Either 'arrival_time' or 'departure_time'
+        steps: A list of dictinoaries with the full information on each individual step of the trip.
         """
-        time = self._directions[0]['legs'][0][which_time]['text']
-        dtime = datetime.strptime(time, '%H:%M%p')
-        return dtime
+        step_directions = []
+        step_num = 1
+        for step in steps:
 
-    def _replace_hour(self, arrival_datetime, departure_datetime):
+            # We'll only consider steps that involve bus or train.
+            # Entries for walking don't habe key 'transit_details'
+            if step.get('transit_details'):
+                distance = step['distance']['value'] # Meters
+                instrs = step['html_instructions']
+                line_name = step['transit_details']['line']['short_name']
+                step_directions.append({
+                    'step': step_num,
+                    'distance': distance,
+                    'html_instructions': instrs,
+                    'line_name': line_name
+                })
+                step_num += 1
+
+        return step_directions
+
+
+    def get_directions(self, full_directions):
         """
         Returns
         -------
-        arrival_datetime with the hour potentially reset depending on the time
-        difference between two inputted times.
+        A parsed `full_directions` dictionary.
 
         Parameters
         ----------
-        arrival_datetime: [datetime] Arrival time to destination in the instance
-            of this trip.
-        departure_datetime: [datetime] Departure time to destination in the
-            instance of this trip.
+        full_directions: dict with full trip direction information straight from Google Maps API.
         """
-        # The logic is that when we go from 12 am/pm -> 1am/pm, we don't want the
-        # timedelta object to show an hour difference of 11 hours. Thus, account
-        # for when departure hr > arrival hr.
-        if departure_datetime.hour > arrival_datetime.hour:
-            departure_datetime = departure_datetime.replace(hour=0)
-        return departure_datetime
+        trip_directions = {}
 
-    def _transform_times(self):
+        # Abbreviate the path
+        legs = full_directions['legs'][0]
+        start_location = legs['start_location']          # Coordinates
+        end_location = legs['end_location']              # Coordinates
+        arrival_time = legs['arrival_time']['value']     # Timestamp
+        departure_time = legs['departure_time']['value'] # Timestamp
+        duration = int(legs['duration']['value']/60)     # Minutes
+
+
+        # Abbreviate the next path and parse
+        steps = legs['steps']
+        step_directions = self.parse_steps(steps)
+
+        trip_directions = {
+            'start_location': start_location,
+            'end_location': end_location,
+            'departure_time': departure_time,
+            'arrival_time': arrival_time,
+            'duration': duration,
+            'steps': step_directions
+        }
+
+        return trip_directions
+
+
+    def to_json(self, trip_directions, which_trip):
         """
-        Returns
-        -------
-        Trip duration in minutes as an int.
-        """
-        # Convert arrival and departure times to datetime
-        arrival_datetime = self._to_datetime('arrival_time')
-        departure_datetime = self._to_datetime('departure_time')
-
-        # Replace the departure_datetime hour depending on arrival_time
-        departure_datetime = self._replace_hour(
-            arrival_datetime, departure_datetime
-        )
-
-        # Calculate timedelta, convert to minutes
-        trip_duration = int((arrival_datetime - departure_datetime).seconds/60)
-
-        return trip_duration
-
-    def _populate_directions_list(self, directions_list, direction, step):
-        """
-        Returns
-        -------
-        directions_list: [list] newly appended parsed directions.
-        step: [int] The step of the next direction in the directions list.
+        Saves `trip_directions` as JSON in a local folder denoted by `which_trip`. File path is
+        data/A/ or data/B/
 
         Parameters
         ----------
-        directions_list: [list] parsed direction dictionaries
-        direction: [dict] unparsed information of the current step in this set
-            of directions.
-        step: [int] The current step of the directions list.
+        trip_directions: the parsed directions dictionary derived from get_directions() method.
+
+        which_trip: [str] Either 'A' or 'B' for trip A or trip B (location 1 -> location 2
+        or location 2 -> location1) to help designate where to save this data.
         """
-        # Ignore any walking instructions
-        if direction.get('transit_details'):
+        # Convert departure time timestamp to string for JSON naming
+        date = datetime.fromtimestamp(trip_directions['departure_time'])
+        date_str = datetime.strftime(date, '%Y-%m-%d_%H-%M-%S')
 
-            # Store name of bus or train line
-            travel_mode = direction['transit_details']['line']['short_name']
-
-            # Store time on that bus or train line in minutes as int
-            direction_len = int(direction['duration']['text'].split()[0])
-
-            # Append dict to the results container
-            directions_list.append({
-                'step':step,
-                'travel_mode' : travel_mode,
-                'length' : direction_len
-            })
-
-            step += 1
-
-        return directions_list, step
-
-    def _transform_directions(self):
-        """
-        Returns
-        -------
-        A dictionary with which trains/buses to take in this trip and how long each one will take.
-
-        Parameters
-        ----------
-
-        directions: [JSON] raw directions contained within self._directions
-        """
-        directions_list = []
-
-        # Isolate the relevant trip directions
-        directions = self._directions[0]['legs'][0]['steps']
-
-        # keep track of which step in the directions we're in
-        step = 1
-
-        # Parse info for each direction and append to directions_list
-        for direction in directions:
-
-            directions_list, step = self._populate_directions_list(
-                directions_list, direction, step
-            )
-
-        return directions_list
-
-    def get_trip_duration(self):
-        """
-        Getter method for trip_duration in minutes as int
-        """
-        return self._trip_duration
-
-    def get_trip_instructions(self):
-        """
-        Getter method for _trip_instructions.
-        """
-        return self._trip_instructions
-
-    def get_trip_start(self):
-        return self._trip_start.strftime("%Y/%m/%d %H:%M")
+        # Export to a JSON
+        with open(f'data/{which_trip}/{date_str}.json', 'w') as f:
+            json.dump(trip_directions, f)
