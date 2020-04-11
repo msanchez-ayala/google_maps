@@ -1,6 +1,8 @@
 from datetime import datetime
+import json
 import googlemaps
 import config
+
 
 class Directions:
     """
@@ -26,11 +28,17 @@ class Directions:
         self.gmaps = self.gmaps_client(config.api_key)
 
         # Convert locations to coordinates
-        self.coords = self.locations_to_coords(location_1, location_2)
+        self.coords = self.locations_to_coords(
+            location_1, location_2, self.gmaps
+        )
 
         # Get full directions for trips between both locations
-        self.full_directions_A = self.get_full_directions(self.coords)
-        self.full_directions_B = self.get_full_directions(self.coords[::-1])
+        self.full_directions_A = self.get_full_directions(
+            self.gmaps, self.coords
+        )
+        self.full_directions_B = self.get_full_directions(
+            self.gmaps, self.coords[::-1]
+        )
 
         # Get parsed directions for trips between both locations
         self.directions_A = self.get_directions(self.full_directions_A)
@@ -49,7 +57,7 @@ class Directions:
         return googlemaps.Client(config.api_key)
 
 
-    def locations_to_coords(self, location_1, location_2):
+    def locations_to_coords(self, location_1, location_2, gmaps):
         """
         Returns
         -------
@@ -80,11 +88,12 @@ class Directions:
         return coords
 
 
-    def get_full_directions(self, coords):
+    def get_full_directions(self, gmaps, coords):
         """
         Returns
         --------
-        A dict with full trip direction information straight from Google Maps API.
+        A dict with full trip direction information straight from Google Maps
+        API.
 
         Parameters
         ----------
@@ -105,11 +114,13 @@ class Directions:
         """
         Returns
         -------
-        A list of dictionaries with parsed information on transit steps of the trip.
+        A list of dictionaries with parsed information on transit steps of the
+        trip.
 
         Parameters
         ----------
-        steps: A list of dictinoaries with the full information on each individual step of the trip.
+        steps: A list of dictinoaries with the full information on each
+        individual step of the trip.
         """
         step_directions = []
         step_num = 1
@@ -140,7 +151,8 @@ class Directions:
 
         Parameters
         ----------
-        full_directions: dict with full trip direction information straight from Google Maps API.
+        full_directions: dict with full trip direction information straight from
+        Google Maps API.
         """
         trip_directions = {}
 
@@ -169,22 +181,22 @@ class Directions:
         return trip_directions
 
 
-    def to_json(self, trip_directions, which_trip):
+    def to_json(self, trip_directions, dir_path=''):
         """
-        Saves `trip_directions` as JSON in a local folder denoted by `which_trip`. File path is
-        data/A/ or data/B/
+        Saves `trip_directions` as JSON in a directory denoted by `dir_path`
 
         Parameters
         ----------
-        trip_directions: the parsed directions dictionary derived from get_directions() method.
+        trip_directions: the parsed directions dictionary derived from
+        get_directions() method.
 
-        which_trip: [str] Either 'A' or 'B' for trip A or trip B (location 1 -> location 2
-        or location 2 -> location1) to help designate where to save this data.
+        dir_path: [str] The directory (or subdirectory) where this file will be
+        stored. Should end with a slash, e.g. 'data/'.
         """
         # Convert departure time timestamp to string for JSON naming
         date = datetime.fromtimestamp(trip_directions['departure_time'])
         date_str = datetime.strftime(date, '%Y-%m-%d_%H-%M-%S')
 
         # Export to a JSON
-        with open(f'data/{which_trip}/{date_str}.json', 'w') as f:
+        with open(f'{dir_path}{date_str}.json', 'w') as f:
             json.dump(trip_directions, f)
