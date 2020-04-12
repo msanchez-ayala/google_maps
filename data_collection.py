@@ -3,7 +3,7 @@ This module calls the "best trip" data from the Google Maps API between two
 locations via public transit. It parses that information and saves to JSON
 in two newly created subdirectories.
 
-Author: M. Sanchez-Ayala (04/12/2020)
+Author: M. Sanchez-Ayala (04/10/2020)
 """
 
 from datetime import datetime
@@ -31,7 +31,7 @@ def locations_to_coords(location_A, location_B, gmaps_client):
     """
     Returns
     -------
-    coords: [list] Two original location addresses as coordinates.
+    List of two original location addresses as coordinates.
 
     Parameters
     -----------
@@ -62,7 +62,7 @@ def get_full_directions(gmaps_client, coords, mode, start_time):
     """
     Returns
     --------
-    directions: [dict] Full trip direction information straight from Google Maps
+    A dict with full trip direction information straight from Google Maps
     API.
 
     Parameters
@@ -71,11 +71,9 @@ def get_full_directions(gmaps_client, coords, mode, start_time):
 
     coords: [list] Two original location addresses as coordinates.
 
-    mode: [str] A method of transportation. Walking, driving, biking, or
-    transit.
+    mode: [str] A method of transportation. Walking, driving, biking, or transit.
 
-    start_time: [datetime] Time at which the API is called to look for the best
-    trip.
+    start_time: [datetime] Time at which the API is called to look for the best trip.
     """
 
     # Call API
@@ -97,8 +95,8 @@ def parse_steps(steps):
 
     Parameters
     ----------
-    steps: [list] Contains dicts with the full information on each individual
-    step of the trip.
+    steps: A list of dictinoaries with the full information on each
+    individual step of the trip.
     """
     step_directions = []
     step_num = 1
@@ -121,7 +119,7 @@ def parse_steps(steps):
     return step_directions
 
 
-def get_parsed_directions(full_directions, start_location_id):
+def parse_directions(full_directions, start_location_id):
     """
     Returns
     -------
@@ -129,7 +127,7 @@ def get_parsed_directions(full_directions, start_location_id):
 
     Parameters
     ----------
-    full_directions: [dict] Full trip direction information straight from
+    full_directions: dict with full trip direction information straight from
     Google Maps API.
 
     start_location_id: [str] Either 'A' or 'B' depending on whether this is
@@ -166,14 +164,10 @@ def to_json(trip_directions):
     Saves `trip_directions` as JSON in 'data/{sub_dir}' where sub_dir is
     A or B depending on the start_location_id.
 
-    NOTE: The file will be named according to the timestamp on trip_directions.
-    This will not always correspond to datetime.now() because the timestamp
-    indicates the time at which the user would ACTUALLY leave the starting
-    location.
-
     Parameters
     ----------
-    trip_directions: [dict] Parsed trip direction information.
+    trip_directions: the parsed directions dictionary derived from
+    parse_directions() method.
     """
     sub_dir = trip_directions['start_location_id']
 
@@ -192,8 +186,8 @@ def main():
 
     Creates the correct in which to store collected data.
     Connects to Google Maps API and gets the coordinates of the two addresses.
-    Exports each trip's parsed directions as a JSON in the subdirectories
-    defined above.
+    Exports each trip's parsed directions as a JSON in the subdirectories defined
+    above.
     """
     establish_directories()
 
@@ -201,9 +195,7 @@ def main():
     gmaps_client = googlemaps.Client(config.api_key)
 
     # Convert locations to coordinates
-    coords = locations_to_coords(
-        config.location_A, config.location_B, gmaps_client
-    )
+    coords = locations_to_coords(config.location_A, config.location_B, gmaps_client)
 
     # Set start time and trip specifications
     start_time = datetime.now()
