@@ -1,3 +1,11 @@
+"""
+This module contains queries for all PostgreSQL table operations, including
+DROP, CREATE, and INSERT statements. This module is used heavily in both
+create_table.py and etl.py.
+
+Author: M. Sanchez-Ayala (04/11/2020)
+"""
+
 ### DROP TABLES ###
 
 locations_table_drop = "DROP TABLE IF EXISTS locations"
@@ -19,7 +27,7 @@ locations_table_create = """
 trips_table_create = """
     CREATE TABLE IF NOT EXISTS
       trips (
-        trip_id INT SERIAL PRIMARY KEY,
+        trip_id SERIAL PRIMARY KEY,
         starting_loc_id CHAR(1) NOT NULL REFERENCES locations(location_id),
         duration INT NOT NULL,
         num_steps SMALLINT NOT NULL
@@ -61,10 +69,11 @@ locations_table_insert = """
       )
     VALUES
       (%s, %s, %s)
+    ON CONFLICT DO NOTHING
 """
 
 trips_table_insert = """
-    CREATE TABLE IF NOT EXISTS
+    INSERT INTO TABLE
       trips (
         trip_id,
         starting_loc_id,
@@ -76,7 +85,7 @@ trips_table_insert = """
 """
 
 time_table_insert = """
-    CREATE TABLE IF NOT EXISTS
+    INSERT INTO TABLE
       time (
         trip_id,
         departure_time,
@@ -93,7 +102,7 @@ time_table_insert = """
 """
 
 steps_table_insert = """
-    CREATE TABLE IF NOT EXISTS
+    INSERT INTO TABLE
       steps (
         trip_id,
         step_num,
