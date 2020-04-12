@@ -1,7 +1,8 @@
 """
-This module uses the Directions class to call the Google Maps API for trip
-directions between two locations. It then saves those directions as JSON files
-in a subdirectory within this one.
+This module calls the Directions class, which calls the Google Maps API for
+trip directions between two locations. It distills that information down to
+relevant key/value pairs and then calls a method to save to JSON within a
+subdirectory.
 """
 import os
 from directions import Directions
@@ -30,12 +31,13 @@ def main():
     above.
     """
     establish_directories()
-    
+
     directions = Directions(config.location_A, config.location_B)
 
     # Save JSON files
-    directions.to_json(directions.directions_A, 'data/A/')
-    directions.to_json(directions.directions_B, 'data/B/')
+    directions.to_json(directions.directions_A)
+    directions.to_json(directions.directions_B)
+
 
 if __name__ == '__main__':
     main()

@@ -1,3 +1,12 @@
+"""
+This module contains only the Directions class, which is responsible for
+retrieving data from the Google Maps API. The Directions class is called in
+data_collection.py.
+
+Author: M. Sanchez-Ayala (04/10/2020)
+"""
+
+
 from datetime import datetime
 import json
 import googlemaps
@@ -41,8 +50,9 @@ class Directions:
         )
 
         # Get parsed directions for trips between both locations
-        self.directions_A = self.get_directions(self.full_directions_A)
-        self.directions_B = self.get_directions(self.full_directions_B)
+        self.directions_A = self.get_directions(self.full_directions_A, 'A')
+        self.directions_B = self.get_directions(self.full_directions_B, 'B')
+
 
     def gmaps_client(self, api_key):
         """
@@ -143,7 +153,7 @@ class Directions:
         return step_directions
 
 
-    def get_directions(self, full_directions):
+    def get_directions(self, full_directions, start_location_id):
         """
         Returns
         -------
@@ -153,17 +163,19 @@ class Directions:
         ----------
         full_directions: dict with full trip direction information straight from
         Google Maps API.
+
+        start_location_id: [str] Either 'A' or 'B' depending on whether this is
+        trip A or B. User defined.
         """
         trip_directions = {}
 
         # Abbreviate the path
         legs = full_directions['legs'][0]
-        start_location = legs['start_location']          # Coordinates
-        end_location = legs['end_location']              # Coordinates
-        arrival_time = legs['arrival_time']['value']     # Timestamp
-        departure_time = legs['departure_time']['value'] # Timestamp
-        duration = int(legs['duration']['value']/60)     # Minutes
-
+        start_location = legs['start_location']           # Coordinates
+        start_location_id = start_location_id             # Either A or B
+        arrival_time = legs['arrival_time']['value']      # Timestamp
+        departure_time = legs['departure_time']['value']  # Timestamp
+        duration = int(legs['duration']['value']/60)      # Minutes
 
         # Abbreviate the next path and parse
         steps = legs['steps']
@@ -171,7 +183,7 @@ class Directions:
 
         trip_directions = {
             'start_location': start_location,
-            'end_location': end_location,
+            'start_location_id': start_location_id,
             'departure_time': departure_time,
             'arrival_time': arrival_time,
             'duration': duration,
@@ -181,22 +193,22 @@ class Directions:
         return trip_directions
 
 
-    def to_json(self, trip_directions, dir_path=''):
+    def to_json(self, trip_directions):
         """
-        Saves `trip_directions` as JSON in a directory denoted by `dir_path`
+        Saves `trip_directions` as JSON in 'data/{sub_dir}' where sub_dir is
+        A or B depending on the start_location_id.
 
         Parameters
         ----------
         trip_directions: the parsed directions dictionary derived from
         get_directions() method.
-
-        dir_path: [str] The directory (or subdirectory) where this file will be
-        stored. Should end with a slash, e.g. 'data/'.
         """
+        sub_dir = trip_directions['start_location_id']
+
         # Convert departure time timestamp to string for JSON naming
         date = datetime.fromtimestamp(trip_directions['departure_time'])
         date_str = datetime.strftime(date, '%Y-%m-%d_%H-%M-%S')
 
         # Export to a JSON
-        with open(f'{dir_path}{date_str}.json', 'w') as f:
+        with open(f'data/{sub_dir}/{date_str}.json', 'w') as f:
             json.dump(trip_directions, f)
