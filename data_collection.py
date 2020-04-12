@@ -73,7 +73,8 @@ def get_full_directions(gmaps_client, coords, mode, start_time):
 
     mode: [str] A method of transportation. Walking, driving, biking, or transit.
 
-    start_time: [datetime] Time at which the API is called to look for the best trip.
+    start_time: [datetime] Time at which the API is called to look for the best
+    trip.
     """
 
     # Call API
@@ -195,13 +196,19 @@ def main():
     gmaps_client = googlemaps.Client(config.api_key)
 
     # Convert locations to coordinates
-    coords = locations_to_coords(config.location_A, config.location_B, gmaps_client)
+    coords = locations_to_coords(
+        config.location_A, config.location_B, gmaps_client
+    )
 
     start_time = datetime.now()
 
     # Get full directions for trips between both locations
-    full_directions_A = get_full_directions(gmaps_client, coords, 'transit', start_time)
-    full_directions_B = get_full_directions(gmaps_client, coords[::-1], 'transit', start_time)
+    full_directions_A = get_full_directions(
+        gmaps_client, coords, 'transit', start_time
+    )
+    full_directions_B = get_full_directions(
+        gmaps_client, coords[::-1], 'transit', start_time
+    )
 
     # Parse the directions
     parsed_directions_A = get_parsed_directions(full_directions_A, 'A')
