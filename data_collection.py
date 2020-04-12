@@ -31,7 +31,7 @@ def locations_to_coords(location_A, location_B, gmaps_client):
     """
     Returns
     -------
-    List of two original location addresses as coordinates.
+    coords: [list] Two original location addresses as coordinates.
 
     Parameters
     -----------
@@ -62,7 +62,7 @@ def get_full_directions(gmaps_client, coords, mode, start_time):
     """
     Returns
     --------
-    A dict with full trip direction information straight from Google Maps
+    directions: [dict] Full trip direction information straight from Google Maps
     API.
 
     Parameters
@@ -71,7 +71,8 @@ def get_full_directions(gmaps_client, coords, mode, start_time):
 
     coords: [list] Two original location addresses as coordinates.
 
-    mode: [str] A method of transportation. Walking, driving, biking, or transit.
+    mode: [str] A method of transportation. Walking, driving, biking, or
+    transit.
 
     start_time: [datetime] Time at which the API is called to look for the best
     trip.
@@ -96,8 +97,8 @@ def parse_steps(steps):
 
     Parameters
     ----------
-    steps: A list of dictinoaries with the full information on each
-    individual step of the trip.
+    steps: [list] Contains dicts with the full information on each individual
+    step of the trip.
     """
     step_directions = []
     step_num = 1
@@ -128,7 +129,7 @@ def get_parsed_directions(full_directions, start_location_id):
 
     Parameters
     ----------
-    full_directions: dict with full trip direction information straight from
+    full_directions: [dict] Full trip direction information straight from
     Google Maps API.
 
     start_location_id: [str] Either 'A' or 'B' depending on whether this is
@@ -165,10 +166,14 @@ def to_json(trip_directions):
     Saves `trip_directions` as JSON in 'data/{sub_dir}' where sub_dir is
     A or B depending on the start_location_id.
 
+    NOTE: The file will be named according to the timestamp on trip_directions.
+    This will not always correspond to datetime.now() because the timestamp
+    indicates the time at which the user would ACTUALLY leave the starting
+    location.
+
     Parameters
     ----------
-    trip_directions: the parsed directions dictionary derived from
-    get_parsed_directions() method.
+    trip_directions: [dict] Parsed trip direction information.
     """
     sub_dir = trip_directions['start_location_id']
 
@@ -186,9 +191,9 @@ def main():
     Wraps data collection together.
 
     Creates the correct in which to store collected data.
-    Connects to Google Maps API and gets the coordinates of the two addresses
-    and saves each trip direction as a JSON in the subdirectories defined
-    above.
+    Connects to Google Maps API and gets the coordinates of the two addresses.
+    Exports each trip's parsed directions as a JSON in the subdirectories
+    defined above.
     """
     establish_directories()
 
@@ -200,23 +205,27 @@ def main():
         config.location_A, config.location_B, gmaps_client
     )
 
+    # Set start time and trip specifications
     start_time = datetime.now()
+    trips = [
+        {'start_location_id': 'A', 'coords': coords},
+        {'start_location_id': 'B', 'coords': coords[::-1]}
+    ]
 
-    # Get full directions for trips between both locations
-    full_directions_A = get_full_directions(
-        gmaps_client, coords, 'transit', start_time
-    )
-    full_directions_B = get_full_directions(
-        gmaps_client, coords[::-1], 'transit', start_time
-    )
+    for trip in trips:
 
-    # Parse the directions
-    parsed_directions_A = get_parsed_directions(full_directions_A, 'A')
-    parsed_directions_B = get_parsed_directions(full_directions_B, 'B')
+        # Get full directions for this trip
+        full_directions = get_full_directions(
+            gmaps_client, trip['coords'], 'transit', start_time
+        )
 
-    # Save parsed directions to JSON files
-    directions.to_json(directions.directions_A)
-    directions.to_json(directions.directions_B)
+        # Parse directions for this trip
+        parsed_directions = parse_directions(
+            full_directions, trip['start_location_id']
+        )
+
+        # Export to JSON in subdirectory
+        to_json(parsed_directions)
 
 
 if __name__ == '__main__':
