@@ -3,217 +3,195 @@ This module calls the Google Maps API, parses information, and stores into
 google_maps.trips MySQL db.
 """
 from datetime import datetime
+import os
+import json
+import glob
 import googlemaps
+import psycopg2
 import config
-from directions import Directions
-import helpers
+from sql_queries import *
 
-
-### EXTRACTION/TRANSFORMATION HELPERS ###
-
-
-def get_coordinates(address, gmaps):
+def open_json(filepath):
     """
     Returns
     -------
-    Lat/Long corresponding to the supplied address.
+    json_file: [dict] The JSON file in usable format
 
     Parameters
     ----------
-    address: [str] An address as you would enter it into Google Maps.
-    gmaps: [googlemaps.Client object] Client object for current session.
-
-    Examples
-    --------
-    >>> get_coordinates('One World Trade Center')
-    {'lat': 40.7127431, 'lng': -74.0133795}
-
-    >>> get_coordinates('476 5th Ave, New York, NY 10018')
-    {'lat': 40.75318230000001, 'lng': -73.9822534}
+    filepath: [str] The filepath to this particular JSON file
     """
-    geocoded_address = gmaps.geocode(address)
-    geometry = geocoded_address[0]['geometry']['location']
-    return geometry
+    with open(filepath, 'r') as f:
+        json_file = json.load(f)
 
-def extract_transform_directions(location_1, location_2, key):
+    return json_file
+
+
+def transform_time(data):
     """
-    Extracts and transforms data from the Google Maps API trip information
-    between location_1 and location_2.
-
     Returns
     -------
-    List of two Directions objects. One for a trip in each direction:
-
-    location_1 -> location 2 AND
-    location_2 -> location 1
+    Tuple of values to be inserted into time table
 
     Parameters
     ----------
-    location_1: [str] First location of this transit trip. An address as you
-        would enter it into Google Maps.
-    location_2: [str] Second location of this transit trip. An address as you
-        would enter it into Google Maps.
-    key: [str] Google API key.
+    data: a dictionary representing the parsed JSON data file with trip info.
     """
-    gmaps = googlemaps.Client(key)
-    gmaps = googlemaps.Client(config.api_key)
+    date = datetime.fromtimestamp(data['departure_time'])
 
-    # Get coordinates for two locations
-    location_1_coords = get_coordinates(location_1, gmaps)
-    location_2_coords = get_coordinates(location_2, gmaps)
+    departure_timestamp = data['departure_time']
+    start_location_id = data['start_location_id']
+    minute = date.minute
+    hour = date.hour
+    day = date.isoweekday()
+    week_of_year = date.isocalendar()[1]
+    month = date.month
+    year = date.year
 
-    # Instantiate Direction objects for each trip (class handles extraction
-    # and transformation of the data in the __init__ method)
-    trip_1 = Directions(
-        location_1_coords, location_2_coords, 'transit', gmaps
-    )
-    trip_2 = Directions(
-        location_2_coords, location_1_coords, 'transit', gmaps
+    if day in [6, 7]:
+        is_weekday = False
+    else:
+        is_weekday = True
+
+    return (
+        departure_timestamp,
+        start_location_id,
+        minute,
+        hour,
+        day,
+        week_of_year,
+        month,
+        year,
+        is_weekday
     )
 
-    return [trip_1, trip_2]
 
-
-### LOAD HELPERS ###
-
-
-def create_trips_tuples(trip_objects):
+def transform_location(data):
     """
     Returns
     -------
-    List of tuples for insertion into the MySQL db. Each tuple contains the
-    departure time, trip direction, and trip duration for each of the two trip
-    objects.
+    Tuple of values to be inserted into locations table.
 
     Parameters
     ----------
-    trip_objects: List of 2 Directions trip objects containing information
-                 to be inserted into the MySQL table. First object contains
-                 info from location_1 -> location_2 and second object is the
-                 other trip.
+    data: a dictionary representing the parsed JSON data file with trip info.
     """
-    trip_tuples = [
+    return (
+        data['start_location_id'],
+        data['start_location']['lat'],
+        data['start_location']['lng']
+    )
+
+
+def transform_trip(data):
+    """
+    Returns
+    -------
+    Tuple of values to be inserted into trips table
+
+    Parameters
+    ----------
+    data: a dictionary representing the parsed JSON data file with trip info.
+    """
+    return (
+        data['departure_time'],
+        data['start_location_id'],
+        data['duration'],
+        len(data['steps'])
+    )
+
+
+def transform_steps(data):
+    """
+    Returns
+    -------
+    Tuple of values to be inserted into steps table
+
+    Parameters
+    ----------
+    data: a dictionary representing the parsed JSON data file with trip info.
+    """
+    steps = data['steps']
+
+    return [
         (
-            trip_object.get_trip_start(),       # departure_time
-            i,                                  # trip_direction (either 0 or 1)
-            trip_object.get_trip_duration(),    # trip_duration
+            data['departure_time'],
+            data['start_location_id'],
+            step['step'],
+            step['line_name']
         )
-        for i, trip_object in enumerate(trip_objects)
+        for step in steps
     ]
-    return trip_tuples
 
-def create_instructions_tuples(trip_objects):
+def load_data(filepath, cur):
     """
-    Returns
-    -------
-    List of tuples for insertion into the MySQL db. Each tuple contains the
-    departure time, trip direction, trip step, transit line, and step duration
-    for each of the two trip objects.
+    Loads `data` into all four tables in postgres.
 
     Parameters
     ----------
-    trip_objects: List of 2 Directions trip objects containing information
-                 to be inserted into the MySQL table. First object contains
-                 info from location_1 -> location_2 and second object is the
-                 other trip.
+    filepath: [str] The filepath to the JSON file to load.
+
+    cur: cursor
     """
-    final_tuples = []
+    data = open_json(filepath)
 
-    # Start by iterating through trip_objects
-    for i, trip_object in enumerate(trip_objects):
+    trips_data = transform_trip(data)
+    location_data = transform_location(data)
+    time_data = transform_time(data)
+    steps_data = transform_steps(data)
 
-        # Create list of tuples for the objects in trip_objects
-        instructions_tuples = [
-            (
-                trip_object.get_trip_start(),    # departure_time
-                i,                               # trip_direction (either 0 or 1)
-                trip_step['step'],               # trip_step
-                trip_step['travel_mode'],        # transit_line
-                trip_step['length']             # step_duration
-            )
-            for trip_step in trip_object.get_trip_instructions()
-        ]
+    cur.execute(trips_table_insert, trips_data)
+    cur.execute(locations_table_insert, location_data)
+    cur.execute(time_table_insert, time_data)
+    for step in steps_data:
+        cur.execute(steps_table_insert, step)
 
-        # Append to final_tuples list
-        final_tuples.extend(instructions_tuples)
 
-    return final_tuples
-
-def insert_data(trip_objects, table, cursor, cnx):
+def process_data(cur, conn, filepath):
     """
-    Inserts data into a specified table in the MySQL db google_maps.
+    Bundles up ETL for all data.
 
     Parameters
     ----------
-    trip_object: List of 2 Directions trip objects containing information
-                 to be inserted into the MySQL table. First object contains
-                 info from my house to gf and second object is the other trip.
-    table: [str] Specifies which table in google_maps to add to.
-    cnx: connection object from mysql.connector.
-    cursor: cursor of cnx object.
+    cur, conn: cursor and connection to the google_maps postgres database.
+
+    filepath: string containing the filepath to the data directory.
+
+    func: function that performs ETL on the given set of files.
     """
+    # get all files matching extension from directory
+    all_files = []
+    for root, dirs, files in os.walk(filepath):
+        files = glob.glob(os.path.join(root,'*.json'))
+        for f in files :
+            all_files.append(os.path.abspath(f))
 
-    if table == 'trips':
-        data_tuples = create_trips_tuples(trip_objects)
-        insert_statement = insert_statement = """
-            INSERT INTO
-              google_maps.trips (departure_time, trip_direction, trip_duration)
-            VALUES
-              (%s, %s, %s);
-        """
+    # get total number of files found
+    num_files = len(all_files)
+    print('{} files found in {}'.format(num_files, filepath))
 
-    elif table == 'instructions':
-        data_tuples = create_instructions_tuples(trip_objects)
-        insert_statement = """
-            INSERT INTO
-              google_maps.instructions (
-                departure_time, trip_direction,
-                trip_step, transit_line, step_duration
-              )
-            VALUES
-              (%s, %s, %s, %s, %s);
-        """
+    # iterate over files and perform ETL
+    for i, datafile in enumerate(all_files, 1):
+        load_data(datafile, cur)
+        print('{}/{} files processed.'.format(i, num_files))
 
-    cursor.executemany(insert_statement, data_tuples)
-    cnx.commit()
-
-def load_directions(trip_objects):
+def main():
     """
-    Loads trip object data into MySQL RDS db named google_maps. Opens and closes
-    connection to MySQL db to avoid lingering connections.
-
-    Parameters
-    ----------
-    trip_objects: list of two Directions objects corresponding to the trips
-        between two locations. This can be gotten from the output of
-        extract_transform_directions().
+    Connects to google_maps db, performs ETL on directions JSON files and then
+    closes the connection to the database.
     """
-    # Connect to MySQL db
-    cnx, cursor = helpers.open_connection()
-
-    # Insert trip and instructions data into MySQL db
-    for table in ['trips', 'instructions']:
-        insert_data(trip_objects, table, cursor, cnx)
-
-    # Close connection to MySQL db
-    helpers.close_connection(cnx, cursor)
-
-
-### FULL ETL ###
-
-
-def etl():
-    """
-    Wraps together all ETL.
-    """
-    # Extract/Transform
-    trip_objects = extract_transform_directions(
-        config.my_address, config.gf_address, config.api_key
+    conn = psycopg2.connect(
+        host = '127.0.0.1',
+        dbname = 'google_maps',
+        user = 'google_user',
+        password = 'passw0rd',
     )
-    # Load
-    load_directions(trip_objects)
+    conn.set_session(autocommit = True)
+    cur = conn.cursor()
 
-### SCRIPT FOR NOW ###
+    process_data(cur, conn, filepath='data')
+
+    conn.close()
 
 if __name__ == '__main__':
-    etl()
+    main()

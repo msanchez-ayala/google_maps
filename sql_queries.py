@@ -15,6 +15,17 @@ steps_table_drop = "DROP TABLE IF EXISTS steps"
 
 ### CREATE TABLES ###
 
+trips_table_create = """
+    CREATE TABLE IF NOT EXISTS
+      trips (
+        trip_id SERIAL PRIMARY KEY,
+        departure_ts BIGINT NOT NULL,
+        start_location_id CHAR(1) NOT NULL,
+        duration INT NOT NULL,
+        num_steps SMALLINT NOT NULL
+      )
+"""
+
 locations_table_create = """
     CREATE TABLE IF NOT EXISTS
       locations (
@@ -24,44 +35,50 @@ locations_table_create = """
       )
 """
 
-trips_table_create = """
-    CREATE TABLE IF NOT EXISTS
-      trips (
-        trip_id SERIAL PRIMARY KEY,
-        starting_loc_id CHAR(1) NOT NULL REFERENCES locations(location_id),
-        duration INT NOT NULL,
-        num_steps SMALLINT NOT NULL
-      )
-"""
-
 time_table_create = """
     CREATE TABLE IF NOT EXISTS
       time (
-        trip_id INT PRIMARY KEY REFERENCES trips(trip_id),
-        departure_time TIMESTAMP NOT NULL,
+        departure_ts BIGINT NOT NULL,
+        start_location_id CHAR(1) NOT NULL,
         minute INT,
         hour INT,
         day INT,
         week_of_year INT,
         month INT,
         year INT,
-        is_weekday BOOLEAN
+        is_weekday BOOLEAN,
+        PRIMARY KEY(departure_ts, start_location_id)
       )
 """
 
 steps_table_create = """
     CREATE TABLE IF NOT EXISTS
       steps (
-        trip_id INT REFERENCES trips(trip_id),
+        departure_ts BIGINT NOT NULL,
+        start_location_id CHAR(1) NOT NULL,
         step_num SMALLINT,
-        line_name VARCHAR(5)
+        line_name VARCHAR(5),
+        PRIMARY KEY(departure_ts, start_location_id, step_num)
       )
 """
 
 ### INSERT TABLES ###
 
+trips_table_insert = """
+    INSERT INTO
+      trips (
+        trip_id,
+        departure_ts,
+        start_location_id,
+        duration,
+        num_steps
+      )
+    VALUES
+      (DEFAULT, %s, %s, %s, %s)
+"""
+
 locations_table_insert = """
-    INSERT INTO TABLE
+    INSERT INTO
       locations (
         location_id,
         latitude,
@@ -72,23 +89,11 @@ locations_table_insert = """
     ON CONFLICT DO NOTHING
 """
 
-trips_table_insert = """
-    INSERT INTO TABLE
-      trips (
-        trip_id,
-        starting_loc_id,
-        duration,
-        num_steps
-      )
-    VALUES
-      (DEFAULT, %s, %s, %s)
-"""
-
 time_table_insert = """
-    INSERT INTO TABLE
+    INSERT INTO
       time (
-        trip_id,
-        departure_time,
+        departure_ts,
+        start_location_id,
         minute,
         hour,
         day,
@@ -102,34 +107,36 @@ time_table_insert = """
 """
 
 steps_table_insert = """
-    INSERT INTO TABLE
+    INSERT INTO
       steps (
-        trip_id,
+        departure_ts,
+        start_location_id,
         step_num,
         line_name
       )
     VALUES
-      (%s, %s, %s)
+      (%s, %s, %s, %s)
 """
 
 ### QUERY LISTS ###
 
 drop_table_queries = [
-    locations_table_drop,
     trips_table_drop,
-    time_table_drop,
-    steps_table_drop
-]
-create_table_queries = [
     locations_table_drop,
-    trips_table_drop,
     time_table_drop,
     steps_table_drop
 ]
 
+create_table_queries = [
+    time_table_create,
+    locations_table_create,
+    trips_table_create,
+    steps_table_create
+]
+
 insert_table_queries = [
+    time_table_insert,
     locations_table_insert,
     trips_table_insert,
-    time_table_insert,
     steps_table_insert
 ]
