@@ -136,3 +136,6 @@ queries.sql
 
 # data
 /data/*
+
+# Google Cloud authentication
+My-First-Project-b4e2a7963497.json
