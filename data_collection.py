@@ -10,6 +10,7 @@ from datetime import datetime
 import json
 import os
 import googlemaps
+from google.cloud import storage
 import config
 
 
@@ -174,10 +175,28 @@ def to_json(trip_directions):
     # Convert departure time timestamp to string for JSON naming
     date = datetime.fromtimestamp(trip_directions['departure_time'])
     date_str = datetime.strftime(date, '%Y-%m-%d_%H-%M-%S')
+    filename = 'data/{}/{}.json'.format(sub_dir, date_str)
 
     # Export to a JSON
-    with open(f'data/{sub_dir}/{date_str}.json', 'w') as f:
+    with open(filename, 'w') as f:
         json.dump(trip_directions, f)
+
+    return filename
+
+def to_google_storage(filename):
+    """
+    Connects to Google Cloud storage to upload the current file
+    """
+    client = storage.Client(
+        project = '876275184095'
+    )
+
+    bucket = client.get_bucket('g-maps')
+
+    blob = bucket.blob(filename)
+
+    with open(filename, "rb") as json_file:
+        blob.upload_from_file(json_file)
 
 
 def main():
@@ -216,8 +235,11 @@ def main():
             full_directions, trip['start_location_id']
         )
 
-        # Export to JSON in subdirectory
-        to_json(parsed_directions)
+        # Export locally to JSON in subdirectory and store file name
+        filename = to_json(parsed_directions)
+
+        # Push to Google Storage
+        to_google_storage(filename)
 
 
 if __name__ == '__main__':
