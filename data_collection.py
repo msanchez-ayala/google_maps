@@ -183,15 +183,15 @@ def to_json(trip_directions):
 
     return filename
 
-def to_google_storage(filename):
+def to_google_storage(project, bucket, filename):
     """
     Connects to Google Cloud storage to upload the current file
     """
     client = storage.Client(
-        project = '876275184095'
+        project = project
     )
 
-    bucket = client.get_bucket('g-maps')
+    bucket = client.get_bucket(bucket)
 
     blob = bucket.blob(filename)
 
@@ -239,7 +239,7 @@ def main():
         filename = to_json(parsed_directions)
 
         # Push to Google Storage
-        to_google_storage(filename)
+        to_google_storage(config.project, config.bucket, filename)
 
 
 if __name__ == '__main__':
