@@ -13,21 +13,19 @@ namely subway and bus.
 The objective is to collect the "best trip" information from the Google Maps API
 every 5 minutes for one week from 1) my apartment to my girlfriend's and 2) her
 apartment to mine. The workflow is as follows:
-- I call the Google Maps API for public transit directions between the two locations every 5 minutes using Airflow.
-- I store each individual trip locally as a JSON file.
-- After a week, I run an ETL script to push the information from the JSON files to a PostgreSQL Docker container.
-- I then create a simple dashboard using Dash to view sample queries from the database.
-- From there, the data can be easily queried and explored with some sample queries in a simple dashboard.
+- **data_collection.py:** configured with cron to run on a Google Compute Engine
+VM every 5 minutes for a week. This module calls the Google Maps API for public
+transit directions between the two locations.
+  - Each individual trip is saved as a JSON file that gets pushed to a public
+  GCS bucket.
+- A Docker container hosting a PostgreSQL database can be run locally at any
+time to monitor the incoming data by running the following scripts:
+  1. **download_storage.py**: Downloads all contents of the GCS bucket locally.
+  2. **create_tables.py** Connects to the PostgreSQL container and creates the db.
+  3. **etl.py:** Populates the db.
+  4. **app.py:** Runs the Dash app, which is a Flask app that displays a dashboard
+  of analytical queries for this project.
 
-## How-To
+## How-to
 
-1. Create a Python 3.7.4 virtual environment and install the packages in **requirements.txt**.
-2.
-
-
-## TO-DO
-
-1. Set up Airflow
-2. Write **etl.py**, **create_tables.py**, and **sql_queries.py**.
-  - Maybe separate out the data collection code from ETL code.
-3. Build dashboard
+Coming shortly

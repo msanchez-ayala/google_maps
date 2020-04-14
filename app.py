@@ -9,9 +9,9 @@ import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
-import pandas as pd
 import plotly.graph_objs as go
 import app_helpers
+from constants import *
 
 
 ### LOAD DATA ###
@@ -25,7 +25,7 @@ stats_figs = app_helpers.stats_main(tod_df, 'mean')
 ### APP ###
 
 navbar = dbc.NavbarSimple(
-    children=
+    children =
         [
             dbc.Button("Learn More", id="learn_more"),
             dbc.Modal(
@@ -50,11 +50,11 @@ to travel between our apartments using Google Maps.
             centered=True
         ),
         ],
-    brand="Transit Travel Time Optimization",
-    brand_href='https://github.com/msanchez-ayala/google_maps',
-    dark=True,
-    sticky="top",
-    color='rgb(66,133,244)'
+    brand = "Transit Travel Time Optimization",
+    brand_href = 'https://github.com/msanchez-ayala/google_maps',
+    dark = True,
+    sticky = "top",
+    color = colors['blue']
 )
 
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']

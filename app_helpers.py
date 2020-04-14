@@ -13,7 +13,9 @@ import plotly.graph_objects as go
 import config
 from constants import *
 
+
 ### ALL-PURPOSE PROCESSING ###
+
 
 def open_connection():
     """
@@ -129,12 +131,12 @@ def plot_time_series(dfs, subset = None):
     fig = go.Figure()
 
     # Add one trace for the data in each df
-    for df in dfs:
+    for i, df in enumerate(dfs):
 
         fig.add_trace(go.Scatter(
             x = df.index,
             y = df.duration,
-            # line_color = colors['green'],
+            line_color = graph_colors[i],
             name = df['start_location_id'].values[0] # Legend labels for this trace
 
         ))
@@ -144,9 +146,8 @@ def plot_time_series(dfs, subset = None):
         yaxis_title = 'Duration (minutes)',
         xaxis_title = 'Departure Time',
         legend_title = 'Starting Location',
-        title_x = 0.5,
-        title_xanchor = 'center',
-        height = 450,
+        title_x = title_x_pos,
+        title_xanchor = title_x_anchor,
         template = 'plotly_white'
     )
 
@@ -202,11 +203,12 @@ def plot_stats(dfs, column, stats):
     fig = go.Figure()
 
     # Add one trace for the data in each df
-    for df in dfs:
+    for i, df in enumerate(dfs):
 
         fig.add_trace(go.Bar(
             x = df[column],
             y = df.duration.astype(int),
+            marker_color = graph_colors[i],
             name = df['start_location_id'].values[0] # Legend labels for this trace
         ))
 
@@ -214,8 +216,8 @@ def plot_stats(dfs, column, stats):
         title = f'{stats.title()} Trip Duration by {column.title()}',
         yaxis_title = 'Duration (minutes)',
         xaxis_title = column.title(),
-        title_x = 0.5,
-        title_xanchor = 'center',
+        title_x = title_x_pos,
+        title_xanchor = title_x_anchor,
         legend_title = 'Starting Location',
         template = 'plotly_white'
     )
