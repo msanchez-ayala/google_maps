@@ -1,24 +1,28 @@
+"""
+This module controls the Dash app that can be viewed from the browser.
+
+Author: M. Sanchez-Ayala (04/14/2020)
+"""
+
 import dash
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, State
-
 import pandas as pd
 import plotly.graph_objs as go
-import numpy as np
-import sys
-sys.path.append('/Users/Marco/Documents/Flatiron/Course_Materials/Projects/google_maps/data')
-import helpers
+import app_helpers
 
-"""
-LOAD DATA
-"""
 
-trips_df, trips_dfs = helpers.get_dfs('trips')
-instr_df, instr_dfs = helpers.get_dfs('instructions')
+### LOAD DATA ###
 
-subsets = ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', 'Evening', 'Early Morning']
+
+tod_df = app_helpers.create_df()
+time_series_fig = app_helpers.time_series_main(tod_df)
+stats_figs = app_helpers.stats_main(tod_df, 'mean')
+
+
+### APP ###
 
 navbar = dbc.NavbarSimple(
     children=
@@ -50,7 +54,7 @@ to travel between our apartments using Google Maps.
     brand_href='https://github.com/msanchez-ayala/google_maps',
     dark=True,
     sticky="top",
-    color='rgb(247,181,41)'
+    color='rgb(66,133,244)'
 )
 
 # external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -58,7 +62,7 @@ body = dbc.Container(
     [
         dbc.Row(
             [
-                html.H4('Trip Breakdown'),
+                html.H4('Overview'),
             ],
             justify='center',
             style={
@@ -66,42 +70,38 @@ body = dbc.Container(
             }
         ),
         dbc.Row(
-            [
-                dbc.Col([
-                    dcc.Dropdown(
-                        id='subset',
-                        options=[{'label':subset, 'value':subset} for subset in subsets],
-                        value='All Trips')
-                ])
-            ]
+            dcc.Graph(
+                id='time_series',
+                figure = time_series_fig,
+                style = {'width':'100%'}
+            )
+        ),
+        dbc.Row(
+            dcc.Graph(
+                id='hour_breakdown',
+                figure= stats_figs['hour'],
+                style = {'width':'100%'}
+            )
         ),
         dbc.Row(
             [
                 dbc.Col(
-                    [
-                        dcc.Graph(
-                            id="trip_ts",
-                            hoverData={'points':'data'},
-                            )
-                    ],
-                    width=7,
+                    dcc.Graph(
+                        id = 'day_breakdown',
+                        figure= stats_figs['day'],
+                        style = {'width':'100%'}
+                    ),
+                    width = 7
                 ),
                 dbc.Col(
-                    [
-                        dcc.Graph(id="box_plots")
-                    ],
-                    width=5
+                    dcc.Graph(
+                        id = 'is_weekday_breakdown',
+                        figure= stats_figs['is_weekday'],
+                        style = {'width':'100%'}
+                    ),
+                    width = 5
                 )
             ]
-        ),
-        dbc.Row(
-            [
-                html.H4('Instructions Breakdown')
-            ],
-            justify='center',
-            style={
-                'padding':'15px 0px'
-            }
         ),
     ]
 )
@@ -109,118 +109,5 @@ body = dbc.Container(
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = html.Div([navbar, body])
 
-"""
-CALLBACKS
-"""
-@app.callback(
-    Output("modal", "is_open"),
-    [Input("learn_more", "n_clicks"), Input("close", "n_clicks")],
-    [State("modal", "is_open")],
-)
-def toggle_modal(n1, n2, is_open):
-    if n1 or n2:
-        return not is_open
-    return is_open
-
-@app.callback(
-    dash.dependencies.Output('trip_ts', 'figure'),
-    [dash.dependencies.Input('subset', 'value')]
-    )
-
-def update_ts(subset):
-    """
-    RETURNS
-    -------
-    A time series of trip durations for the two DataFrames within trips_dfs.
-
-    PARAMETERS
-    ----------
-    subset: [str] Denotes the subset these dfs belong to. Can be one of:
-            ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon',
-            Evening', 'Early Morning']
-
-    trips_dfs: [list] two DataFrames, one being the trip to gf slice and the
-        other being trip to me slice. These dfs must already have all of the
-        engineered features from create_features().
-    """
-    trace = []
-
-    for df in trips_dfs:
-
-        trace.append(go.Scatter(
-            x = df.departure_time,
-            y = df.trip_duration,
-            name = df['trip_direction_text'].values[0], # Legend labels for this trace
-        ))
-
-    layout = go.Layout(dict(
-                        title = f'Transit Trip Duration for {subset}' if subset else 'Transit Trip Duration',
-                        template = "plotly_white",
-                        # margin={'t':70,'l':60,'b':40},
-                        xaxis_title = 'Departure Time',
-                        yaxis_title = 'Minutes',
-                        legend_orientation='h',
-                        legend=dict(x=0.1, y=1.1)
-                        # xaxis_showgrid=False,
-                        # yaxis_ticks='outside',
-                        # yaxis_tickcolor='white',
-                        # yaxis_ticklen=10,
-                        # yaxis_zeroline=True,
-                        # legend={'orientation':'h',},
-                        # xaxis_range=xaxis_range,
-                        # height = height,  #600
-                        ))
-
-    return {'data': trace, 'layout': layout}
-
-@app.callback(
-    dash.dependencies.Output('box_plots', 'figure'),
-    [dash.dependencies.Input('subset', 'value')]
-    )
-
-def update_box_plots(subset):
-    """
-    RETURNS
-    -------
-    A figure comparing box plots of trip duration for the two DataFrames in
-    trips_dfs.
-
-    PARAMETERS
-    ----------
-    trips_dfs: [list] two DataFrames, one being the trip to gf slice and the other being trip to me slice.
-         These dfs must already have all of the engineered features from create_features().
-
-    subset: [str] Denotes the subset these dfs belong to. Can be one of:
-            ['All Trips', 'Weekdays', 'Weekends', 'Morning', 'Afternoon', 'Evening', 'Early Morning']
-
-    """
-    trace = []
-
-    for df in trips_dfs:
-
-        trace.append(go.Box(
-            y = df.trip_duration,                    # y values for this trace
-            name = df.trip_direction_text.values[0], # x label for this trace
-        ))
-
-
-    layout = go.Layout(dict(
-                        title = f'Transit Trip Duration for {subset}' if subset else 'Transit Trip Duration',
-                        template = "plotly_white",
-                        # margin={'t':70,'l':60,'b':40},
-                        xaxis_title = 'Minutes',
-                        showlegend=False,
-                        # yaxis_ticks='outside',
-                        # yaxis_tickcolor='white',
-                        # yaxis_ticklen=10,
-                        # yaxis_zeroline=True,
-                        # legend={'orientation':'h',},
-                        # xaxis_range=xaxis_range,
-                        # height = height,  #600
-                        ))
-
-    return {'data': trace, 'layout': layout}
-
-
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server(host='0.0.0.0', port=8050, debug=True)
