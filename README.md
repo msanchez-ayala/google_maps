@@ -28,4 +28,39 @@ time to monitor the incoming data by running the following scripts:
 
 ## How-to
 
-Coming shortly
+Any machine ca access my Google Cloud Storage Bucket and run the app. You will
+need to complete 3 things prior to running the app.
+1. Clone the directory
+2. Pull the Docker image
+3. Set up python3 venv
+
+Clone this repo and change directories to the new `google_maps` directory in your terminal.
+```
+git clone https://github.com/msanchez-ayala/google_maps.git
+```
+Navigate to the new directory
+```
+cd google_maps
+```
+Log into Docker (if not already)
+```
+docker login.io
+```
+Pull my Docker image containing PostgreSQL
+```
+docker pull msanchezayala/google-maps
+```
+Set up a virtual environment in `google_maps`
+```
+python3 -m venv ./
+```
+Activate it and install dependencies
+```
+source ./bin/activate
+
+pip install -r requirements.txt
+```
+Lastly, run the bash script that will take care of the rest (run the container and execute python files in correct order)
+```
+bash app.sh
+```
