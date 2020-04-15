@@ -9,7 +9,7 @@ import logging
 import os
 import json
 from google.cloud import storage
-import config
+import constants
 from data_collection import establish_directories
 
 
@@ -92,4 +92,4 @@ def main(bucket, folder):
 
 
 if __name__ == '__main__':
-    main(config.bucket, config.folder)
+    main(constants.bucket, constants.folder)

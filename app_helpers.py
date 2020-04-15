@@ -10,7 +10,6 @@ import psycopg2
 import pandas as pd
 from pandas.io.sql import read_sql_query
 import plotly.graph_objects as go
-import config
 from constants import *
 
 

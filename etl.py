@@ -6,9 +6,7 @@ from datetime import datetime
 import os
 import json
 import glob
-import googlemaps
 import psycopg2
-import config
 from sql_queries import *
 
 def open_json(filepath):
