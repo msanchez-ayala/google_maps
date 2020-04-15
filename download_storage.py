@@ -10,7 +10,20 @@ import os
 import json
 from google.cloud import storage
 import constants
-from data_collection import establish_directories
+
+
+def establish_directories():
+    """
+    Checks if the necessary data-storing directories exist. If not, creates them
+    within the current directory.
+    """
+    if not os.path.exists('data'):
+        os.mkdir('data')
+        os.mkdir('data/A')
+        os.mkdir('data/B')
+    elif (not os.path.exists('data/A')) or (not os.path.exists('data/B')):
+        os.mkdir('data/A')
+        os.mkdir('data/B')
 
 
 def get_blobs(bucket):

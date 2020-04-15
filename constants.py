@@ -18,11 +18,6 @@ graph_colors = [colors['blue'], colors['yellow']]
 title_x_pos = 0.5
 title_x_anchor = 'center'
 
-### GEOGRAPHIC LOCATIONS ###
-
-location_A = '186 Scholes St, Brooklyn, NY'
-location_B = '110-48 72nd Ave, Flushing, NY'
-
 ### DOWNLOAD STORAGE ###
 
 bucket = 'g-maps'

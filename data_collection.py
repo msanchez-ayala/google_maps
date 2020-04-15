@@ -12,20 +12,7 @@ import os
 import googlemaps
 from google.cloud import storage
 import config
-
-
-def establish_directories():
-    """
-    Checks if the necessary data-storing directories exist. If not, creates them
-    within the current directory.
-    """
-    if not os.path.exists('data'):
-        os.mkdir('data')
-        os.mkdir('data/A')
-        os.mkdir('data/B')
-    elif (not os.path.exists('data/A')) or (not os.path.exists('data/B')):
-        os.mkdir('data/A')
-        os.mkdir('data/B')
+from download_storage import establish_directories
 
 
 def locations_to_coords(location_A, location_B, gmaps_client):
