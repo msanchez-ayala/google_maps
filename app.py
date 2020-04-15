@@ -19,7 +19,6 @@ from constants import *
 
 tod_df = app_helpers.create_df()
 time_series_fig = app_helpers.time_series_main(tod_df)
-stats_figs = app_helpers.stats_main(tod_df, 'mean')
 
 
 ### APP ###
@@ -33,13 +32,11 @@ navbar = dbc.NavbarSimple(
                 dbc.ModalHeader("Welcome"),
                 dbc.ModalBody(dcc.Markdown(
                 """\
-My girlfriend and I live in two different NYC boroughs, making traveling between
-our apartments a real pain. Although an Uber is not too expensive at off-peak
-times, my method of choice is public transit since I already have a monthly
-unlimited pass. It usually feels that it takes around an hour to get between
-our apartments, given that I typically only make the trip on the weekends. I
-propose this study to determine when are the quickest and most efficient times
-to travel between our apartments using Google Maps.
+This dashboard serves to compare travel times at a glance. You can visualize
+different statistics below!
+
+Note: "Starting location A" implies that the trip describes going from location A
+to location B and vice versa.
                 """)
                 ),
                 dbc.ModalFooter(
@@ -66,7 +63,7 @@ body = dbc.Container(
             ],
             justify='center',
             style={
-                'padding':'15px 0px'
+                'padding-top':'15px'
             }
         ),
         dbc.Row(
@@ -77,9 +74,18 @@ body = dbc.Container(
             )
         ),
         dbc.Row(
+            dcc.Dropdown(
+                id = 'stats_dropdown',
+                options = dropdown_options,
+                value = "mean",
+                style={'width': dropdown_width}
+            ),
+
+        ),
+        dbc.Row(
             dcc.Graph(
-                id='hour_breakdown',
-                figure= stats_figs['hour'],
+                id ='hour_breakdown',
+                # figure = stats_figs['hour'],
                 style = {'width':'100%'}
             )
         ),
@@ -88,7 +94,7 @@ body = dbc.Container(
                 dbc.Col(
                     dcc.Graph(
                         id = 'day_breakdown',
-                        figure= stats_figs['day'],
+                        # figure = stats_figs['day'],
                         style = {'width':'100%'}
                     ),
                     width = 7
@@ -96,7 +102,7 @@ body = dbc.Container(
                 dbc.Col(
                     dcc.Graph(
                         id = 'is_weekday_breakdown',
-                        figure= stats_figs['is_weekday'],
+                        # figure = stats_figs['is_weekday'],
                         style = {'width':'100%'}
                     ),
                     width = 5
@@ -108,6 +114,37 @@ body = dbc.Container(
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 app.layout = html.Div([navbar, body])
+
+@app.callback(
+    Output("modal", "is_open"),
+    [Input("learn_more", "n_clicks"), Input("close", "n_clicks")],
+    [State("modal", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+@app.callback(
+    dash.dependencies.Output('hour_breakdown', 'figure'),
+    [dash.dependencies.Input('stats_dropdown', 'value')]
+)
+def update_hour_breakdown(stat):
+    return app_helpers.stats_main(tod_df, stat, 'hour')
+
+@app.callback(
+    dash.dependencies.Output('day_breakdown', 'figure'),
+    [dash.dependencies.Input('stats_dropdown', 'value')]
+)
+def update_hour_breakdown(stat):
+    return app_helpers.stats_main(tod_df, stat, 'day')
+
+@app.callback(
+    dash.dependencies.Output('is_weekday_breakdown', 'figure'),
+    [dash.dependencies.Input('stats_dropdown', 'value')]
+)
+def update_hour_breakdown(stat):
+    return app_helpers.stats_main(tod_df, stat, 'is_weekday')
 
 if __name__ == '__main__':
     app.run_server(host='0.0.0.0', port=8050, debug=True)

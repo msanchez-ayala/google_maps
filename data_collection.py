@@ -152,6 +152,10 @@ def to_json(trip_directions):
     Saves `trip_directions` as JSON in 'data/{sub_dir}' where sub_dir is
     A or B depending on the start_location_id.
 
+    Returns
+    -------
+    The filepath of the newly created JSON file.
+
     Parameters
     ----------
     trip_directions: the parsed directions dictionary derived from
@@ -172,7 +176,7 @@ def to_json(trip_directions):
 
 def to_google_storage(project, bucket, filename):
     """
-    Connects to Google Cloud storage to upload the current file
+    Connects to Google Cloud storage to upload the file with path `filepath`.
     """
     client = storage.Client(
         project = project

@@ -89,7 +89,8 @@ def main(bucket, folder):
 
     folder: [str] the filepath to where we want to save the JSON files.
     """
-    # Set up logging for monitoring this process
+    # Set up logging for monitoring this process. The logging lines output a lot of annoying
+    # code that you can comment out if you so desire.
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.DEBUG)
 
     # Get a list of blob objects using the Google Cloud Storage API

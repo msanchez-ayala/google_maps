@@ -63,6 +63,33 @@ def create_df():
 
     return tod_df
 
+def convert_to_day(num):
+    """
+    Helper for process_df()
+
+    Returns
+    -------
+    [str] A day of week decoded from the given number.
+
+    Parameters
+    ----------
+    num: [int] A number from 1 - 7 with 1 being Monday and 7 being Sunday.
+    """
+    if num == 1:
+        return 'Mon'
+    elif num == 2:
+        return 'Tue'
+    elif num == 3:
+        return 'Wed'
+    elif num == 4:
+        return 'Thu'
+    elif num == 5:
+        return 'Fri'
+    elif num == 6:
+        return 'Sat'
+    elif num == 7:
+        return 'Sun'
+
 
 def process_df(df):
     """
@@ -84,6 +111,9 @@ def process_df(df):
     # Set index and sort
     pro_df.set_index('departure_ts', inplace = True)
     pro_df.sort_values(by = 'departure_ts', inplace = True)
+
+    # Decode the numerical day column to english
+    pro_df['day'] = pro_df['day'].map(lambda num: convert_to_day(num))
 
     return pro_df
 
@@ -224,7 +254,7 @@ def plot_stats(dfs, column, stats):
     return fig
 
 
-def stats_main(df, stats):
+def stats_main(df, stats, column):
     """
     Returns
     -------
@@ -236,17 +266,13 @@ def stats_main(df, stats):
     df: [Pandas df] raw dataframe from SQL query
 
     stats: [str] statistic to display
+
+    column: [str] one of hour, day, or is_weekday
     """
     pro_df = process_df(df)
 
-    columns = ['hour', 'day', 'is_weekday']
+    stats_df = agg_column(pro_df, column, stats)
+    stats_dfs = split_df(stats_df)
+    fig = plot_stats(stats_dfs, column, stats)
 
-    dfs = {}
-
-    for column in columns:
-        stats_df = agg_column(pro_df, column, stats)
-        stats_dfs = split_df(stats_df)
-        fig = plot_stats(stats_dfs, column, stats)
-        dfs[column] = fig
-
-    return dfs
+    return fig
