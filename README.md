@@ -11,16 +11,43 @@ typically only make the trip on the weekends.
 I started this project to figure out when we can get between our apartments the
 quickest via public transportation, namely subway and bus.
 
-## Data and Outcomes
+The objective of this project is to collect the "best trip" information from the
+Google Maps API every 5 minutes for one week from 1) my apartment to my
+girlfriend's and 2) her apartment to mine. I have built an ETL pipeline and a
+simple dashboard to visualize the results.
 
-The objective is to collect the "best trip" information from the Google Maps API
-every 5 minutes for one week from 1) my apartment to my girlfriend's and 2) her
-apartment to mine. The workflow is as follows:
+There are instructions at the bottom of this README for anyone to run the app
+on their own machine.
 
-**data_collection.py:** A module configured with cron to run on a Google Compute
-Engine VM every 5 minutes for a week.
-This module calls the Google Maps API for public transit directions between the
-two locations.
+
+## ETL Pipeline
+1. Call Google Maps API for trip instructions between the two locations for both
+directions of the trip (JSON) every 5 minutes.
+2. Store each JSON in a Google Cloud Storage bucket acting as a data lake.
+
+  **NOTE: Steps 1 and 2 are carried out on a Google Compute Engine VM instance running
+    a cron task.**
+
+  **The remaining steps occur as a batch process on any machine.**
+3. Pull down all data from the GCS bucket.
+4. Run a Docker container hosting PostgreSQL.
+5. Create and populate a PostgreSQL database using the star schema shown below.
+
+
+## Dashboard
+
+This app displays some simple queries from the PostgreSQL database to show
+different travel times.
+
+![gif1](/images/gif1.gif)
+
+Scrolling down, we can inspect a few descriptive statistics.
+
+![gif2](/images/gif2.gif)
+
+## Implementation
+**data_collection.py:** A module that calls the Google Maps API for public transit
+directions between the two locations every 5 minutes for a week.
 Each individual trip is saved as a JSON file in a public Google Cloud Storage
 bucket. E.g.
 ```
@@ -33,19 +60,17 @@ bucket. E.g.
   "steps": [{"step": 1, "distance": 1490, "html_instructions": "Subway towards 8 Av", "line_name": "L"}, {"step": 2, "distance": 4403, "html_instructions": "Subway towards Court Sq - 23 St", "line_name": "G"}, {"step": 3, "distance": 9957, "html_instructions": "Subway towards Jamaica Center - Parsons/Archer", "line_name": "E"}]
 }
 ```
+
 **app.sh:** A bash script that wraps together the remaining modules and processes.
 It starts a PostgreSQL Docker container and then does the following:
-  1. Activates python virtual environment and install dependencies.
-  2. Runs **download_storage.py**, which downloads all contents of the GCS bucket locally (~10 MB). This step can be slow (maybe a couple mintues) because GCS does not
-  allow for batch downloads. We unfortunately have to pull each JSON individually.
+  1. Activates python virtual environment and installs dependencies.
+  2. Runs **download_storage.py**, which downloads all contents of the GCS bucket locally
+  (~10 MB). This step can be slow (maybe a couple mintues) because we're pulling
+  each JSON individually.
   2. Runs **create_tables.py**, which connects to the Docker container and creates the database and all tables we'll need to populate.
   3. Runs **etl.py**, which populates the database by extracting/transforming the data downloaded by **download_storage.py**.
   4. Runs **app.py**, which is a Dash app to visualize some simple queries on data in our database.
 
-## App
-
-![gif1](/images/gif1.gif)
-![gif2](/images/gif2.gif)
 
 ## Database Schema
 
@@ -57,6 +82,7 @@ Joining `trips` and `time` can answer most simple questions we have such as what
 times of day will be quickest for travel. However, we still have other tables such as
 `steps` that could tell us some stats about perhaps which train/bus lines are most
 common in each route. We can also find the times of day that will require fewest transfers.
+
 
 ## How-To: Access my data and visualize in Dash
 
@@ -91,6 +117,7 @@ Lastly, run the bash script that will take care of the rest (see description abo
 bash app.sh
 ```
 
+
 ## Challenges
 
 I struggled figuring out how to design the database schema. Most of my
@@ -110,8 +137,7 @@ used to say, "this will never be as difficult or painful as it the first
 time you do it."
 
 
-
-## Next Steps
+## Further Directions
 
 This project has huge potential. I've limited the scope severely so as to not
 take up too much time for now. Some low-hanging fruit for expansion:
@@ -121,3 +147,7 @@ take up too much time for now. Some low-hanging fruit for expansion:
 commute time.
 - There are some machine learning applications too such as combining more
 data sets such as weather and seeing how that affects ride times.
+- Set up bucket copying from GCS to speed up **download_storage.py.**
+- Ideally, I would set up a service to run all the ETL in the cloud so that the
+user doesn't need to download this docker image and run all the ETL themselves.
+I believe that might require some more resources (financially).
