@@ -118,6 +118,19 @@ steps_table_insert = """
       (%s, %s, %s, %s)
 """
 
+### SELECT QUERIES FOR APP ###
+
+trips_time_select = """
+    SELECT
+      *
+    FROM
+      trips
+    JOIN
+      time
+    USING
+      (departure_ts, start_location_id)
+"""
+
 ### QUERY LISTS ###
 
 drop_table_queries = [

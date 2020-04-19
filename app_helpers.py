@@ -11,6 +11,7 @@ import pandas as pd
 from pandas.io.sql import read_sql_query
 import plotly.graph_objects as go
 from constants import *
+from sql_queries import trips_time_select
 
 
 ### ALL-PURPOSE PROCESSING ###
@@ -41,16 +42,7 @@ def create_df():
     Also closes connection to db.
     """
 
-    query = """
-        SELECT
-          *
-        FROM
-          trips
-        JOIN
-          time
-        USING
-          (departure_ts, start_location_id)
-    """
+    query = trips_time_select
 
     # Connect to db
     conn = open_connection()
