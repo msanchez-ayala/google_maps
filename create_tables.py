@@ -1,5 +1,5 @@
 import psycopg2
-from sql_queries import create_table_queries, drop_table_queries
+from sql_queries import create_table_queries, drop_table_queries, trips_time_create
 
 
 def create_database():
@@ -43,7 +43,7 @@ def create_database():
     return cur, conn
 
 
-def drop_tables(cur, conn):
+def drop_tables(cur):
     """
     All tables in google_maps are dropped as specified by the queries in
     sql_queries.py.
@@ -56,7 +56,7 @@ def drop_tables(cur, conn):
             print(e)
 
 
-def create_tables(cur, conn):
+def create_tables(cur):
     """
     All tables in google_maps are created as specified by the queries in
     sql_queries.py.
@@ -69,6 +69,16 @@ def create_tables(cur, conn):
             print(e)
 
 
+def create_view(cur):
+    """
+    Creates the view that joins trips and time tables for the app.
+    """
+    try:
+        cur.execute(trips_time_create)
+    except psycopg2.Error as e:
+        print('ERROR: Could not create the view')
+        print(e)
+
 def main():
     """
     Bundles up the script: creates db and opens connection, drops all tables
@@ -77,8 +87,9 @@ def main():
     """
     cur, conn = create_database()
 
-    drop_tables(cur, conn)
-    create_tables(cur, conn)
+    drop_tables(cur)
+    create_tables(cur)
+    create_view(cur)
 
     conn.close()
 

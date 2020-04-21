@@ -118,9 +118,12 @@ steps_table_insert = """
       (%s, %s, %s, %s)
 """
 
-### SELECT QUERIES FOR APP ###
+### QUERIES FOR APP ###
 
-trips_time_select = """
+trips_time_create = """
+    CREATE OR REPLACE VIEW
+      trips_time
+    AS
     SELECT
       *
     FROM
@@ -129,6 +132,13 @@ trips_time_select = """
       time
     USING
       (departure_ts, start_location_id)
+"""
+
+trips_time_select = """
+    SELECT
+      *
+    FROM
+      trips_time
 """
 
 ### QUERY LISTS ###
