@@ -7,9 +7,11 @@ import os
 import json
 import glob
 import psycopg2
+import time
 from sql_queries import *
 
-def open_json(filepath):
+
+def extract_json(filepath):
     """
     Returns
     -------
@@ -121,6 +123,7 @@ def transform_steps(data):
         for step in steps
     ]
 
+
 def load_data(filepath, cur):
     """
     Loads `data` into all four tables in postgres.
@@ -131,7 +134,7 @@ def load_data(filepath, cur):
 
     cur: cursor
     """
-    data = open_json(filepath)
+    data = extract_json(filepath)
 
     trips_data = transform_trip(data)
     location_data = transform_location(data)
@@ -170,8 +173,13 @@ def process_data(cur, conn, filepath):
 
     # iterate over files and perform ETL
     for i, datafile in enumerate(all_files, 1):
-        load_data(datafile, cur)
-        print('{}/{} files processed.'.format(i, num_files))
+        try:
+            load_data(datafile, cur)
+            print('{}/{} files processed.'.format(i, num_files))
+        except json.decoder.JSONDecodeError as e:
+            print(e)
+            print(datafile)
+
 
 def main():
     """
@@ -190,6 +198,7 @@ def main():
     process_data(cur, conn, filepath='data')
 
     conn.close()
+
 
 if __name__ == '__main__':
     main()
