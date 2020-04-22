@@ -24,14 +24,11 @@ on their own machine.
 1. Call Google Maps API for trip instructions between the two locations for both
 directions of the trip (JSON) every 5 minutes.
 2. Store each JSON in a Google Cloud Storage bucket acting as a data lake.
-
-  **NOTE: Steps 1 and 2 are carried out on a Google Compute Engine VM instance running
-    a cron task.**
-
-  **The remaining steps occur as a batch process on any machine.**
 3. Pull down all data from the GCS bucket.
 4. Run a Docker container hosting PostgreSQL.
 5. Create and populate a PostgreSQL database using the star schema shown below.
+**NOTE: Steps 1 and 2 are carried out on a Google Compute Engine VM instance running
+a cron task. The remaining steps occur as a batch process on any machine.**
 
 
 ## Dashboard
@@ -83,41 +80,6 @@ times of day will be quickest for travel. However, we still have other tables su
 `steps` that could tell us some stats about perhaps which train/bus lines are most
 common in each route. We can also find the times of day that will require fewest transfers.
 
-
-## How-To: Access my data and visualize in Dash
-
-Any machine can access my Google Cloud Storage Bucket and run the app. You will
-need to complete 3 things prior to running the app.
-1. Clone the directory
-2. Pull the Docker image
-3. Set up python3 venv
-
-Clone this repo and change directories to the new `google_maps` directory in your terminal.
-```
-git clone https://github.com/msanchez-ayala/google_maps.git
-```
-Navigate to the new directory
-```
-cd google_maps
-```
-Log into Docker (if not already)
-```
-docker login
-```
-Pull my Docker image containing PostgreSQL
-```
-docker pull msanchezayala/google-maps
-```
-Set up a virtual environment in `google_maps`
-```
-python3 -m venv ./
-```
-Lastly, run the bash script that will take care of the rest (see description above)
-```
-bash app.sh
-```
-
-
 ## Challenges
 
 I struggled figuring out how to design the database schema. Most of my
@@ -151,3 +113,36 @@ data sets such as weather and seeing how that affects ride times.
 - Ideally, I would set up a service to run all the ETL in the cloud so that the
 user doesn't need to download this docker image and run all the ETL themselves.
 I believe that might require some more resources (financially).
+
+## How-To: Access my data and visualize in Dash
+
+Any machine can access my Google Cloud Storage Bucket and run the app. You will
+need to complete 3 things prior to running the app.
+1. Clone the directory
+2. Pull the Docker image
+3. Set up python3 venv
+
+Clone this repo and change directories to the new `google_maps` directory in your terminal.
+```
+git clone https://github.com/msanchez-ayala/google_maps.git
+```
+Navigate to the new directory
+```
+cd google_maps
+```
+Log into Docker (if not already)
+```
+docker login
+```
+Pull my Docker image containing PostgreSQL
+```
+docker pull msanchezayala/google-maps
+```
+Set up a virtual environment in `google_maps`
+```
+python3 -m venv ./
+```
+Lastly, run the bash script that will take care of the rest (see description above)
+```
+bash app.sh
+```
