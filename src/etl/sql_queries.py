@@ -134,13 +134,6 @@ trips_time_create = """
       (departure_ts, start_location_id)
 """
 
-trips_time_select = """
-    SELECT
-      *
-    FROM
-      trips_time
-"""
-
 ### QUERY LISTS ###
 
 drop_table_queries = [
