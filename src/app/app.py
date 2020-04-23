@@ -11,7 +11,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 import plotly.graph_objs as go
 import app_helpers
-from constants import *
+from consts import *
 
 
 ### LOAD DATA ###
@@ -126,25 +126,15 @@ def toggle_modal(n1, n2, is_open):
     return is_open
 
 @app.callback(
-    dash.dependencies.Output('hour_breakdown', 'figure'),
+    [dash.dependencies.Output('hour_breakdown', 'figure'),
+     dash.dependencies.Output('day_breakdown', 'figure'),
+     dash.dependencies.Output('is_weekday_breakdown', 'figure')],
     [dash.dependencies.Input('stats_dropdown', 'value')]
 )
 def update_hour_breakdown(stat):
-    return app_helpers.stats_main(tod_df, stat, 'hour')
+    figs = app_helpers.stats_main(tod_df, stat)
+    return figs['hour'], figs['day'], figs['is_weekday']
 
-@app.callback(
-    dash.dependencies.Output('day_breakdown', 'figure'),
-    [dash.dependencies.Input('stats_dropdown', 'value')]
-)
-def update_hour_breakdown(stat):
-    return app_helpers.stats_main(tod_df, stat, 'day')
-
-@app.callback(
-    dash.dependencies.Output('is_weekday_breakdown', 'figure'),
-    [dash.dependencies.Input('stats_dropdown', 'value')]
-)
-def update_hour_breakdown(stat):
-    return app_helpers.stats_main(tod_df, stat, 'is_weekday')
 
 if __name__ == '__main__':
     app.run_server(host='0.0.0.0', port=8050, debug=True)

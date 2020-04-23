@@ -10,7 +10,7 @@ import psycopg2
 import pandas as pd
 from pandas.io.sql import read_sql_query
 import plotly.graph_objects as go
-from constants import *
+from consts import *
 from sql_queries import trips_time_select
 
 
@@ -246,11 +246,11 @@ def plot_stats(dfs, column, stats):
     return fig
 
 
-def stats_main(df, stats, column):
+def stats_main(df, stats):
     """
     Returns
     -------
-    List of plotly graph objects figures for each breakdown plot for the given
+    Dict of plotly graph objects figures for each breakdown plot for the given
     data and statistic to display.
 
     Parameters
@@ -258,13 +258,14 @@ def stats_main(df, stats, column):
     df: [Pandas df] raw dataframe from SQL query
 
     stats: [str] statistic to display
-
-    column: [str] one of hour, day, or is_weekday
     """
     pro_df = process_df(df)
 
-    stats_df = agg_column(pro_df, column, stats)
-    stats_dfs = split_df(stats_df)
-    fig = plot_stats(stats_dfs, column, stats)
+    figs = {}
+    for column in ['hour', 'day', 'is_weekday']:
+        stats_df = agg_column(pro_df, column, stats)
+        stats_dfs = split_df(stats_df)
+        fig = plot_stats(stats_dfs, column, stats)
+        figs[column] = fig
 
-    return fig
+    return figs
