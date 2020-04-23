@@ -9,7 +9,7 @@ import logging
 import os
 import json
 from google.cloud import storage
-import constants
+from config import *
 
 
 def establish_directories():
@@ -106,4 +106,4 @@ def main(bucket, folder):
 
 
 if __name__ == '__main__':
-    main(constants.bucket, constants.folder)
+    main(config.bucket, config.folder)

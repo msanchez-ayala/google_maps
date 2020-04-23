@@ -230,7 +230,7 @@ def main():
         filename = to_json(parsed_directions)
 
         # Push to Google Storage
-        to_google_storage(config.project, config.bucket, filename)
+        # to_google_storage(config.project, config.bucket, filename)
 
 
 if __name__ == '__main__':

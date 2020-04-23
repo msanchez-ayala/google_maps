@@ -39,7 +39,6 @@ time_table_create = """
     CREATE TABLE IF NOT EXISTS
       time (
         departure_ts BIGINT NOT NULL,
-        start_location_id CHAR(1) NOT NULL,
         minute INT,
         hour INT,
         day INT,
@@ -47,7 +46,7 @@ time_table_create = """
         month INT,
         year INT,
         is_weekday BOOLEAN,
-        PRIMARY KEY(departure_ts, start_location_id)
+        PRIMARY KEY(departure_ts)
       )
 """
 
@@ -93,7 +92,6 @@ time_table_insert = """
     INSERT INTO
       time (
         departure_ts,
-        start_location_id,
         minute,
         hour,
         day,
@@ -103,7 +101,8 @@ time_table_insert = """
         is_weekday
       )
     VALUES
-      (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+      (%s, %s, %s, %s, %s, %s, %s, %s)
+    ON CONFLICT DO NOTHING
 """
 
 steps_table_insert = """
@@ -131,7 +130,7 @@ trips_time_create = """
     JOIN
       time
     USING
-      (departure_ts, start_location_id)
+      (departure_ts)
 """
 
 ### QUERY LISTS ###
