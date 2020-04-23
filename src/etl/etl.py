@@ -40,7 +40,6 @@ def transform_time(data):
     date = datetime.fromtimestamp(data['departure_time'])
 
     departure_timestamp = data['departure_time']
-    start_location_id = data['start_location_id']
     minute = date.minute
     hour = date.hour
     day = date.isoweekday()
@@ -55,7 +54,6 @@ def transform_time(data):
 
     return (
         departure_timestamp,
-        start_location_id,
         minute,
         hour,
         day,
@@ -175,7 +173,9 @@ def process_data(cur, conn, filepath):
     for i, datafile in enumerate(all_files, 1):
         try:
             load_data(datafile, cur)
-            print('{}/{} files processed.'.format(i, num_files))
+            # Only display progress every 50 files
+            if (not i % 50) or (i == num_files):
+                print('{}/{} files processed.'.format(i, num_files))
         except json.decoder.JSONDecodeError as e:
             print(e)
             print(datafile)
