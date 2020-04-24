@@ -62,6 +62,8 @@ Activate and install requirements
 source ./bin/activate
 pip install -r requirements.txt
 ```
+Lastly, unzip the data (if you haven't already). This will vary by OS,
+but can be a simple as double-clicking on the file.
 
 ### 1. Just the Dashboard
 To view the Dash app, all you have to do is run Docker container and then the
