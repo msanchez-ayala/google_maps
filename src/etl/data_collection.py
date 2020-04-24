@@ -229,7 +229,7 @@ def main():
         # Export locally to JSON in subdirectory and store file name
         filename = to_json(parsed_directions)
 
-        # Push to Google Storage
+        # Push that file to Google Storage
         # to_google_storage(config.project, config.bucket, filename)
 
 
