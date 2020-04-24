@@ -16,20 +16,6 @@ Google Maps API every 5 minutes for one week from 1) my apartment to my
 girlfriend's and 2) her apartment to mine. I have built an ETL pipeline and a
 simple dashboard to visualize the results.
 
-There are instructions at the bottom of this README for anyone to run the app
-on their own machine.
-
-
-## ETL Pipeline
-1. Call Google Maps API for trip instructions between the two locations for both
-directions of the trip (JSON) every 5 minutes.
-2. Store each JSON in a Google Cloud Storage bucket acting as a data lake.
-3. Pull down all data from the GCS bucket.
-4. Run a Docker container hosting PostgreSQL.
-5. Create and populate a PostgreSQL database using the star schema shown below.
-**NOTE: Steps 1 and 2 are carried out on a Google Compute Engine VM instance running
-a cron task. The remaining steps occur as a batch process on any machine.**
-
 
 ## Dashboard
 
@@ -42,82 +28,10 @@ Scrolling down, we can inspect a few descriptive statistics.
 
 ![gif2](/images/gif2.gif)
 
-## Implementation
-**data_collection.py:** A module that calls the Google Maps API for public transit
-directions between the two locations every 5 minutes for a week.
-Each individual trip is saved as a JSON file in a public Google Cloud Storage
-bucket. E.g.
-```
-{
-  "start_location": {"lat": 40.7087015, "lng": -73.9416712},
-  "start_location_id": "A",
-  "departure_time": 1586809354,
-  "arrival_time": 1586812163,
-  "duration": 46,
-  "steps": [{"step": 1, "distance": 1490, "html_instructions": "Subway towards 8 Av", "line_name": "L"}, {"step": 2, "distance": 4403, "html_instructions": "Subway towards Court Sq - 23 St", "line_name": "G"}, {"step": 3, "distance": 9957, "html_instructions": "Subway towards Jamaica Center - Parsons/Archer", "line_name": "E"}]
-}
-```
 
-**app.sh:** A bash script that wraps together the remaining modules and processes.
-It starts a PostgreSQL Docker container and then does the following:
-  1. Activates python virtual environment and installs dependencies.
-  2. Runs **download_storage.py**, which downloads all contents of the GCS bucket locally
-  (~10 MB). This step can be slow (maybe a couple mintues) because we're pulling
-  each JSON individually.
-  2. Runs **create_tables.py**, which connects to the Docker container and creates the database and all tables we'll need to populate.
-  3. Runs **etl.py**, which populates the database by extracting/transforming the data downloaded by **download_storage.py**.
-  4. Runs **app.py**, which is a Dash app to visualize some simple queries on data in our database.
+## How-To: Configuration
 
-
-## Database Schema
-
-![erd](/images/erd.jpeg)
-
-We have one fact table, `trips`, and three dimension tables, `steps`, `locations`,
-and `time`.
-Joining `trips` and `time` can answer most simple questions we have such as what
-times of day will be quickest for travel. However, we still have other tables such as
-`steps` that could tell us some stats about perhaps which train/bus lines are most
-common in each route. We can also find the times of day that will require fewest transfers.
-
-## Challenges
-
-I struggled figuring out how to design the database schema. Most of my
-tables operate on compound primary keys. I would love to eliminate that, but
-I am generating all of the data myself. I suppose it wouldn't be too
-difficult to assign some unique keys within **data_collection.py**.
-
-This was my first time setting up an end-to-end app like this that can be
-shared with other users. In fact, it was my first time ever using tools
-like Compute Engine and Storage. The hardest part of this project was just
-figuring out how to orchestrate and harmonize all of the processes.
-
-That being said, I a lot of fun learning everything and know that this
-experience will help greatly speed up any subsequent projects I develop
-that involve the same or similar tools. As an old music teacher of mine
-used to say, "this will never be as difficult or painful as it the first
-time you do it."
-
-
-## Further Directions
-
-This project has huge potential. I've limited the scope severely so as to not
-take up too much time for now. Some low-hanging fruit for expansion:
-
-- Expand to other modes of transportation (driving, walking, biking)
-- Try other locations. For instance, it could be used to find the optimal
-commute time.
-- There are some machine learning applications too such as combining more
-data sets such as weather and seeing how that affects ride times.
-- Set up bucket copying from GCS to speed up **download_storage.py.**
-- Ideally, I would set up a service to run all the ETL in the cloud so that the
-user doesn't need to download this docker image and run all the ETL themselves.
-I believe that might require some more resources (financially).
-
-## How-To: Access my data and visualize in Dash
-
-Any machine can access my Google Cloud Storage Bucket and run the app. You will
-need to complete 3 things prior to running the app.
+You can use this project in a number of ways. All will require the following:
 1. Clone the directory
 2. Pull the Docker image
 3. Set up python3 venv
@@ -142,7 +56,103 @@ Set up a virtual environment in `google_maps`
 ```
 python3 -m venv ./
 ```
-Lastly, run the bash script that will take care of the rest (see description above)
+Activate and install requirements
+```
+source ./bin/activate
+pip install -r requirements.txt
+```
+
+### 1. Just the Dashboard
+To view the Dash app, all you have to do is run Docker container and then the
+`app.sh` bash script
+```
+docker run --name google_maps_container -p 5432:5432 -d msanchezayala/google-maps
+```
+Run the bash script, which will create the database, populate it, and launch the app
 ```
 bash app.sh
 ```
+Lastly, paste `127.0.0.1:8050` into your browser when the app starts running.
+
+When done with everything, you can close out of the app with `ctrl + C` and then
+running the following to close out of the Docker container
+```
+docker stop google_maps_container
+docker rm google_maps_container
+```
+
+### 2. Collect Your Own Data
+You will need the following:
+1. A Google Maps API key, which you can register for [here](https://developers.google.com/maps/documentation/geocoding/get-api-key)
+2. Make sure you enable both Directions API and Geolocation API
+3. Create `/src/etl/config.py`
+In `config.py` assign following variables:
+
+```
+### GOOGLE MAPS API CREDENTIALS ###
+
+api_key = 'your key'
+
+### GEOGRAPHIC LOCATIONS ###
+
+location_A = 'first address exactly as you'd enter into Google Maps'
+location_B = 'second address exactly as you'd enter into Google Maps'
+```
+To collect data, you should schedule a cron task at your desired time interval that runs
+`data_collection.sh`. Open the file and fill in the missing
+filepath in the first line. Mine was
+```
+*/5 * * * * bash data_collection.sh > ./log.log 2>&1
+```
+So that I could keep track of any errors.
+
+##### Pushing to GCP Storage Bucket
+If you plan to push each record to GCP storage, make sure to obtain [Google
+ Authorization](https://cloud.google.com/docs/authentication/getting-started),
+ put the authorization JSON file somewhere and then uncomment google authorization line in `data_collection.sh`:
+```
+### FILL IN ### absolute path to authorization json
+# export GOOGLE_APPLICATION_CREDENTIALS='path_to_your_google_auth.json'
+```
+Uncomment the last line of `main()` in `src/etl/data_collection.py`
+
+Add to `config.py`
+```
+project = 'your project number' # This is found in your Google developer console
+bucket = 'the storage bucket name where you want to save each record'
+```
+##### Retrieving Records from your GCP Storage Bucket
+This section assumes you've set up `config.py` as specified above. You will just
+need to add one variable to `config.py` to do this, which is a variable mapping
+to the absolute path of the `google_maps` dir.
+```
+folder = 'absolute path to google_maps'
+```
+Make sure there's no forward slash at the end of that particular path, as code in
+`src/etl/download_storage.py` already includes it.
+
+Lastly,
+```
+python src/etl/download_storage.py
+```
+And your download will begin. This is honestly kind of slow since the Python driver
+for Google Cloud only allows you to download individual blobs and not copying the
+entire bucket or a particular object. If you have `gsutil` set up then I'd
+recommend doing some form of the `cp` command to more quickly get your data.
+
+
+## Further Directions
+
+This project has lots of potential. I've limited the scope severely so as to
+so as to produce something in a reasonable amount of time. Here are some ideas
+for expansion that I'd like to consider:
+
+- Add to other modes of transportation (driving, walking, biking)
+- Try other locations. For instance, it could be used to find the optimal
+commute time.
+- There are some machine learning applications too such as combining more
+data sets such as weather and seeing how that affects ride times.
+- Ideally, I would set up a service to run all the ETL in the cloud so that the
+user doesn't need to download this docker image and run all the ETL themselves.
+This would likely require more financial resources though, so I will hold off
+for now.
