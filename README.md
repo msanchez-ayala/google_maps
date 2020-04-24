@@ -14,7 +14,8 @@ quickest via public transportation, namely subway and bus.
 The objective of this project is to collect the "best trip" information from the
 Google Maps API every 5 minutes for one week from 1) my apartment to my
 girlfriend's and 2) her apartment to mine. I have built an ETL pipeline and a
-simple dashboard to visualize the results.
+simple dashboard to visualize the results. The pipeline is discussed in the
+README within `/src/etl`.
 
 
 ## Dashboard
