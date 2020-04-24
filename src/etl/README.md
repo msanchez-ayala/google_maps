@@ -1,5 +1,6 @@
 ## My ETL Pipeline
-![pipeline](/images/pipeline.jpeg)
+
+![pipeline](images/pipeline.jpeg)
 
 1. Call Google Maps API for trip instructions between two locations for both
 directions of the trip (JSON) every 5 minutes. This is run on a Google Compute
