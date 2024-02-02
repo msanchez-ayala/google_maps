@@ -1,4 +1,4 @@
-dash==1.11.0
+dash==2.15.0
 dash-bootstrap-components==0.8.1
 google-cloud-storage==1.27.0
 googlemaps==4.1.0
